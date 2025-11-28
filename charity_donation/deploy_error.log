@@ -1,0 +1,71 @@
+INFO:     Connecting to a 'anvil' node.
+Deploying from: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/eth_utils/applicators.py", line 117, in apply_formatters_to_dict
+    yield key, formatters[key](item)
+               ~~~~~~~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/web3/_utils/normalizers.py", line 253, in normalize_abi
+    validate_abi(cast(ABI, abi))
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/web3/_utils/validation.py", line 92, in validate_abi
+    raise Web3ValueError("'abi' is not a list")
+web3.exceptions.Web3ValueError: 'abi' is not a list
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.13/bin/ape", line 8, in <module>
+    sys.exit(cli())
+             ~~~^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/click/core.py", line 1157, in __call__
+    return self.main(*args, **kwargs)
+           ~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/click/core.py", line 1078, in main
+    rv = self.invoke(ctx)
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/ape/_cli.py", line 86, in invoke
+    return super().invoke(ctx)
+           ~~~~~~~~~~~~~~^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/click/core.py", line 1688, in invoke
+    return _process_result(sub_ctx.command.invoke(sub_ctx))
+                           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/ape_run/_cli.py", line 76, in invoke
+    return super().invoke(ctx)
+           ~~~~~~~~~~~~~~^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/click/core.py", line 1688, in invoke
+    return _process_result(sub_ctx.command.invoke(sub_ctx))
+                           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/ape/cli/commands.py", line 111, in invoke
+    return self._invoke(ctx, provider=provider)
+           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/ape/cli/commands.py", line 148, in _invoke
+    return ctx.invoke(self.callback or (lambda: None), **ctx.params)
+           ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/click/core.py", line 783, in invoke
+    return __callback(*args, **kwargs)
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/ape_run/_cli.py", line 154, in call
+    main_ns["main"]()  # Execute the script
+    ~~~~~~~~~~~~~~~^^
+  File "/Users/chauanhkhoi/Documents/DaiHoc/HK7/BlockChain/do-an-cuoi-ky/charity_donation/scripts/deploy.py", line 22, in main
+    CharityDonation = w3.eth.contract(abi=abi, bytecode=bytecode)
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/web3/eth/eth.py", line 689, in contract
+    ContractFactory = ContractFactoryClass.factory(self.w3, **kwargs)
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/web3/contract/contract.py", line 476, in factory
+    PropertyCheckingFactory(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        class_name or cls.__name__,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<2 lines>...
+        normalizers=normalizers,
+        ^^^^^^^^^^^^^^^^^^^^^^^^
+    ),
+    ^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/web3/_utils/datatypes.py", line 58, in __new__
+    processed_namespace = apply_formatters_to_dict(
+        normalizers,
+        namespace,
+    )
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/eth_utils/functional.py", line 47, in inner
+    return callback(fn(*args, **kwargs))
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/eth_utils/applicators.py", line 122, in apply_formatters_to_dict
+    raise ValueError(new_error_message) from exc
+ValueError: Could not format invalid value ABIList(root=[EventABI(type='event', name='CampaignCreated', inputs=[EventABIType(name='id', type='uint256', components=None, internal_type=None, indexed=False), EventABIType(name='owner', type='address', components=None, internal_type=None, indexed=False), EventABIType(name='target', type='uint256', components=None, internal_type=None, indexed=False), EventABIType(name='deadline', type='uint256', components=None, internal_type=None, indexed=False)], anonymous=False), EventABI(type='event', name='DonationReceived', inputs=[EventABIType(name='id', type='uint256', components=None, internal_type=None, indexed=False), EventABIType(name='donor', type='address', components=None, internal_type=None, indexed=False), EventABIType(name='amount', type='uint256', components=None, internal_type=None, indexed=False)], anonymous=False), EventABI(type='event', name='GoalChecked', inputs=[EventABIType(name='id', type='uint256', components=None, internal_type=None, indexed=False), EventABIType(name='reached', type='bool', components=None, internal_type=None, indexed=False)], anonymous=False), EventABI(type='event', name='Withdrawn', inputs=[EventABIType(name='id', type='uint256', components=None, internal_type=None, indexed=False), EventABIType(name='owner', type='address', components=None, internal_type=None, indexed=False), EventABIType(name='amount', type='uint256', components=None, internal_type=None, indexed=False)], anonymous=False), EventABI(type='event', name='Refunded', inputs=[EventABIType(name='id', type='uint256', components=None, internal_type=None, indexed=False), EventABIType(name='donor', type='address', components=None, internal_type=None, indexed=False), EventABIType(name='amount', type='uint256', components=None, internal_type=None, indexed=False)], anonymous=False), MethodABI(type='function', name='createCampaign', stateMutability='nonpayable', inputs=[ABIType(name='_name', type='string', components=None, internal_type=None), ABIType(name='_description', type='string', components=None, internal_type=None), ABIType(name='_target', type='uint256', components=None, internal_type=None), ABIType(name='_duration', type='uint256', components=None, internal_type=None)], outputs=[]), MethodABI(type='function', name='donate', stateMutability='payable', inputs=[ABIType(name='_id', type='uint256', components=None, internal_type=None)], outputs=[]), MethodABI(type='function', name='checkGoal', stateMutability='nonpayable', inputs=[ABIType(name='_id', type='uint256', components=None, internal_type=None)], outputs=[]), MethodABI(type='function', name='withdraw', stateMutability='nonpayable', inputs=[ABIType(name='_id', type='uint256', components=None, internal_type=None)], outputs=[]), MethodABI(type='function', name='refund', stateMutability='nonpayable', inputs=[ABIType(name='_id', type='uint256', components=None, internal_type=None)], outputs=[]), MethodABI(type='function', name='getCampaign', stateMutability='view', inputs=[ABIType(name='_id', type='uint256', components=None, internal_type=None)], outputs=[ABIType(name='', type='tuple', components=[ABIType(name='id', type='uint256', components=None, internal_type=None), ABIType(name='owner', type='address', components=None, internal_type=None), ABIType(name='name', type='string', components=None, internal_type=None), ABIType(name='description', type='string', components=None, internal_type=None), ABIType(name='targetAmount', type='uint256', components=None, internal_type=None), ABIType(name='amountRaised', type='uint256', components=None, internal_type=None), ABIType(name='deadline', type='uint256', components=None, internal_type=None), ABIType(name='isClosed', type='bool', components=None, internal_type=None), ABIType(name='goalReached', type='bool', components=None, internal_type=None)], internal_type=None)]), MethodABI(type='function', name='campaigns', stateMutability='view', inputs=[ABIType(name='arg0', type='uint256', components=None, internal_type=None)], outputs=[ABIType(name='', type='tuple', components=[ABIType(name='id', type='uint256', components=None, internal_type=None), ABIType(name='owner', type='address', components=None, internal_type=None), ABIType(name='name', type='string', components=None, internal_type=None), ABIType(name='description', type='string', components=None, internal_type=None), ABIType(name='targetAmount', type='uint256', components=None, internal_type=None), ABIType(name='amountRaised', type='uint256', components=None, internal_type=None), ABIType(name='deadline', type='uint256', components=None, internal_type=None), ABIType(name='isClosed', type='bool', components=None, internal_type=None), ABIType(name='goalReached', type='bool', components=None, internal_type=None)], internal_type=None)]), MethodABI(type='function', name='contributions', stateMutability='view', inputs=[ABIType(name='arg0', type='uint256', components=None, internal_type=None), ABIType(name='arg1', type='address', components=None, internal_type=None)], outputs=[ABIType(name='', type='uint256', components=None, internal_type=None)]), MethodABI(type='function', name='campaignCount', stateMutability='view', inputs=[], outputs=[ABIType(name='', type='uint256', components=None, internal_type=None)])]) as field 'abi'

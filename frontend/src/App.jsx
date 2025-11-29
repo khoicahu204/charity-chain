@@ -7,23 +7,10 @@ import contractAddress from './contracts/contract-address.json';
 const CONTRACT_ADDRESS = contractAddress.CharityDonation;
 const RPC_URL = "http://127.0.0.1:8545";
 
-// Hardcoded Accounts for Local Dev
-const ACCOUNTS = {
-  OWNER: {
-    name: "Owner (Account 0)",
-    privateKey: "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
-    address: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266" // Derived from PK
-  },
-  DONOR: {
-    name: "Donor (Account 1)",
-    privateKey: "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d",
-    address: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8" // Derived from PK
-  }
-};
-
 function App() {
   // State
-  const [currentAccount, setCurrentAccount] = useState(null); // 'OWNER' or 'DONOR'
+  const [accounts, setAccounts] = useState([]);
+  const [currentAccountIndex, setCurrentAccountIndex] = useState(0);
   const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -40,21 +27,35 @@ function App() {
 
   // Initial Load
   useEffect(() => {
-    // Auto-login as Owner on start
-    handleLogin('OWNER');
+    const init = async () => {
+      try {
+        const provider = new ethers.JsonRpcProvider(RPC_URL);
+        const accs = await provider.listAccounts();
+        setAccounts(accs);
+        if (accs.length > 0) {
+          setCurrentAccountIndex(0);
+        }
+        fetchCampaigns();
+      } catch (error) {
+        console.error("Failed to connect to blockchain:", error);
+        alert("Failed to connect to blockchain. Make sure Geth/Anvil is running.");
+      }
+    };
+    init();
   }, []);
 
   // Helper to get Contract with Signer
   const getContractWithSigner = async () => {
-    if (!currentAccount) return null;
+    if (accounts.length === 0) return null;
 
     const provider = new ethers.JsonRpcProvider(RPC_URL);
-    const wallet = new ethers.Wallet(ACCOUNTS[currentAccount].privateKey, provider);
+    // Use the currently selected account index
+    const signer = await provider.getSigner(currentAccountIndex);
 
     return new ethers.Contract(
       CONTRACT_ADDRESS,
       CharityDonationArtifact.abi,
-      wallet
+      signer
     );
   };
 
@@ -69,10 +70,8 @@ function App() {
   };
 
   // Login / Switch Account
-  const handleLogin = (accountKey) => {
-    setCurrentAccount(accountKey);
-    // Refresh campaigns when switching
-    setTimeout(() => fetchCampaigns(), 500);
+  const handleLogin = (index) => {
+    setCurrentAccountIndex(index);
   };
 
   // Fetch Campaigns
@@ -191,7 +190,10 @@ function App() {
     }
   };
 
-  const activeAddress = currentAccount ? ACCOUNTS[currentAccount].address : null;
+  // Get current active address based on currentAccountIndex
+  const activeAddress = accounts.length > 0 && accounts[currentAccountIndex]
+    ? (typeof accounts[currentAccountIndex] === 'string' ? accounts[currentAccountIndex] : accounts[currentAccountIndex].address)
+    : null;
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
@@ -207,26 +209,64 @@ function App() {
 
           <div className="flex items-center gap-4">
             {/* Account Switcher */}
-            <div className="flex bg-slate-100 rounded-lg p-1">
-              <button
-                onClick={() => handleLogin('OWNER')}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${currentAccount === 'OWNER'
-                    ? 'bg-white text-slate-900 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-700'
-                  }`}
-              >
-                Owner
-              </button>
-              <button
-                onClick={() => handleLogin('DONOR')}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${currentAccount === 'DONOR'
-                    ? 'bg-white text-slate-900 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-700'
-                  }`}
-              >
-                Donor
-              </button>
-            </div>
+            {accounts.length > 0 && (
+              <div className="flex bg-slate-100 rounded-lg p-1 gap-1">
+                {accounts.length === 1 ? (
+                  // If only 1 account, show Owner and Donor (both use same account)
+                  <>
+                    <button
+                      onClick={() => handleLogin(0)}
+                      className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${currentAccountIndex === 0
+                        ? 'bg-white text-slate-900 shadow-sm'
+                        : 'text-slate-500 hover:text-slate-700'
+                        }`}
+                    >
+                      Owner
+                    </button>
+                    <button
+                      onClick={() => handleLogin(0)}
+                      className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all text-slate-500 hover:text-slate-700`}
+                    >
+                      Donor
+                    </button>
+                  </>
+                ) : (
+                  // If multiple accounts, Owner = account 0, Donor = account 1, rest are User X
+                  <>
+                    <button
+                      onClick={() => handleLogin(0)}
+                      className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${currentAccountIndex === 0
+                        ? 'bg-white text-slate-900 shadow-sm'
+                        : 'text-slate-500 hover:text-slate-700'
+                        }`}
+                    >
+                      Owner
+                    </button>
+                    <button
+                      onClick={() => handleLogin(1)}
+                      className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${currentAccountIndex === 1
+                        ? 'bg-white text-slate-900 shadow-sm'
+                        : 'text-slate-500 hover:text-slate-700'
+                        }`}
+                    >
+                      Donor
+                    </button>
+                    {accounts.slice(2).map((acc, idx) => (
+                      <button
+                        key={typeof acc === 'string' ? acc : acc.address}
+                        onClick={() => handleLogin(idx + 2)}
+                        className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${currentAccountIndex === idx + 2
+                          ? 'bg-white text-slate-900 shadow-sm'
+                          : 'text-slate-500 hover:text-slate-700'
+                          }`}
+                      >
+                        User {idx + 2}
+                      </button>
+                    ))}
+                  </>
+                )}
+              </div>
+            )}
 
             {activeAddress && (
               <div className="flex items-center gap-2 bg-slate-100 px-4 py-2 rounded-lg text-sm font-medium">

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
-import { Wallet, Plus, Heart, DollarSign, CheckCircle, XCircle, RefreshCw, User, LogOut } from 'lucide-react';
+import { Wallet, Plus, Heart, DollarSign, CheckCircle, XCircle, RefreshCw, User, LogOut, Lock } from 'lucide-react';
 import CharityDonationArtifact from './contracts/CharityDonation.json';
 import contractAddress from './contracts/contract-address.json';
 
@@ -8,9 +8,19 @@ const CONTRACT_ADDRESS = contractAddress.CharityDonation;
 const RPC_URL = "http://127.0.0.1:8545";
 
 function App() {
-  // State
-  const [accounts, setAccounts] = useState([]);
-  const [currentAccountIndex, setCurrentAccountIndex] = useState(0);
+  // Authentication State
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authenticatedAccount, setAuthenticatedAccount] = useState('');
+  const [authenticatedSigner, setAuthenticatedSigner] = useState(null);
+
+  // Login Form State
+  const [loginForm, setLoginForm] = useState({
+    account: '',
+    privateKey: ''
+  });
+  const [loginError, setLoginError] = useState('');
+
+  // Campaign State
   const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -19,43 +29,76 @@ function App() {
   const [newCampaign, setNewCampaign] = useState({
     name: '',
     description: '',
-    target: '',
-    duration: ''
+    target: '0.01',
+    duration: '1'
   });
 
   const [donationAmount, setDonationAmount] = useState({});
 
-  // Initial Load
+  // Initial Load - Fetch campaigns if authenticated
   useEffect(() => {
-    const init = async () => {
-      try {
-        const provider = new ethers.JsonRpcProvider(RPC_URL);
-        const accs = await provider.listAccounts();
-        setAccounts(accs);
-        if (accs.length > 0) {
-          setCurrentAccountIndex(0);
-        }
-        fetchCampaigns();
-      } catch (error) {
-        console.error("Failed to connect to blockchain:", error);
-        alert("Failed to connect to blockchain. Make sure Geth/Anvil is running.");
+    if (isAuthenticated) {
+      fetchCampaigns();
+    }
+  }, [isAuthenticated]);
+
+  // Login Handler
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setLoginError('');
+
+    try {
+      // Validate inputs
+      if (!loginForm.account || !loginForm.privateKey) {
+        setLoginError('Please enter both account address and private key');
+        return;
       }
-    };
-    init();
-  }, []);
 
-  // Helper to get Contract with Signer
+      // Validate account address format
+      if (!ethers.isAddress(loginForm.account)) {
+        setLoginError('Invalid account address format');
+        return;
+      }
+
+      // Create wallet from private key
+      const provider = new ethers.JsonRpcProvider(RPC_URL);
+      const wallet = new ethers.Wallet(loginForm.privateKey, provider);
+
+      // Verify that the private key matches the account address
+      if (wallet.address.toLowerCase() !== loginForm.account.toLowerCase()) {
+        setLoginError('Private key does not match the account address');
+        return;
+      }
+
+      // Authentication successful
+      setAuthenticatedAccount(wallet.address);
+      setAuthenticatedSigner(wallet);
+      setIsAuthenticated(true);
+      setLoginForm({ account: '', privateKey: '' });
+
+    } catch (error) {
+      console.error('Login error:', error);
+      setLoginError('Invalid private key or account address');
+    }
+  };
+
+  // Logout Handler
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    setAuthenticatedAccount('');
+    setAuthenticatedSigner(null);
+    setCampaigns([]);
+    setDonationAmount({});
+  };
+
+  // Helper to get Contract with Authenticated Signer
   const getContractWithSigner = async () => {
-    if (accounts.length === 0) return null;
-
-    const provider = new ethers.JsonRpcProvider(RPC_URL);
-    // Use the currently selected account index
-    const signer = await provider.getSigner(currentAccountIndex);
+    if (!authenticatedSigner) return null;
 
     return new ethers.Contract(
       CONTRACT_ADDRESS,
       CharityDonationArtifact.abi,
-      signer
+      authenticatedSigner
     );
   };
 
@@ -69,11 +112,6 @@ function App() {
     );
   };
 
-  // Login / Switch Account
-  const handleLogin = (index) => {
-    setCurrentAccountIndex(index);
-  };
-
   // Fetch Campaigns
   const fetchCampaigns = async () => {
     setLoading(true);
@@ -83,6 +121,7 @@ function App() {
       const loadedCampaigns = [];
       for (let i = 0; i < count; i++) {
         const camp = await contract.campaigns(i);
+        if (camp.isDeleted) continue; // Skip deleted campaigns
         loadedCampaigns.push({
           id: i,
           owner: camp.owner,
@@ -105,6 +144,12 @@ function App() {
   // Create Campaign
   const handleCreateCampaign = async (e) => {
     e.preventDefault();
+
+    if (Number(newCampaign.target) <= 0 || Number(newCampaign.duration) <= 0) {
+      alert("Target and Duration must be positive numbers!");
+      return;
+    }
+
     try {
       const contract = await getContractWithSigner();
       const targetWei = ethers.parseEther(newCampaign.target);
@@ -128,7 +173,10 @@ function App() {
 
   // Donate
   const handleDonate = async (id) => {
-    if (!donationAmount[id]) return;
+    if (!donationAmount[id] || Number(donationAmount[id]) <= 0) {
+      alert("Please enter a valid positive amount!");
+      return;
+    }
     try {
       const contract = await getContractWithSigner();
       const amountWei = ethers.parseEther(donationAmount[id]);
@@ -190,11 +238,96 @@ function App() {
     }
   };
 
-  // Get current active address based on currentAccountIndex
-  const activeAddress = accounts.length > 0 && accounts[currentAccountIndex]
-    ? (typeof accounts[currentAccountIndex] === 'string' ? accounts[currentAccountIndex] : accounts[currentAccountIndex].address)
-    : null;
+  // Delete Campaign
+  const handleDelete = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this campaign?")) return;
+    try {
+      const contract = await getContractWithSigner();
+      const tx = await contract.deleteCampaign(id);
+      await tx.wait();
 
+      alert("Campaign deleted successfully!");
+      fetchCampaigns();
+    } catch (error) {
+      console.error("Error deleting campaign:", error);
+      alert(`Failed to delete campaign. Error: ${error.message || error}`);
+    }
+  };
+
+  // Check if current user is Owner (Account 0)
+  const isOwner = authenticatedAccount.toLowerCase() === '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'.toLowerCase();
+
+  // Login Page
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-rose-50 via-purple-50 to-slate-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8">
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-rose-100 rounded-full mb-4">
+              <Heart className="w-8 h-8 text-rose-500" />
+            </div>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-rose-500 to-purple-600 bg-clip-text text-transparent mb-2">
+              CharityChain
+            </h1>
+            <p className="text-slate-600">Login to manage campaigns</p>
+          </div>
+
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                <User className="w-4 h-4 inline mr-2" />
+                Account Address
+              </label>
+              <input
+                type="text"
+                placeholder="0x..."
+                className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500"
+                value={loginForm.account}
+                onChange={(e) => setLoginForm({ ...loginForm, account: e.target.value })}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                <Lock className="w-4 h-4 inline mr-2" />
+                Private Key
+              </label>
+              <input
+                type="password"
+                placeholder="0x..."
+                className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500"
+                value={loginForm.privateKey}
+                onChange={(e) => setLoginForm({ ...loginForm, privateKey: e.target.value })}
+              />
+            </div>
+
+            {loginError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+                {loginError}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              className="w-full bg-gradient-to-r from-rose-500 to-purple-600 text-white py-3 rounded-lg font-bold hover:from-rose-600 hover:to-purple-700 transition-all shadow-lg"
+            >
+              Login
+            </button>
+          </form>
+
+          <div className="mt-6 p-4 bg-slate-50 rounded-lg">
+            <p className="text-xs text-slate-600 font-medium mb-2">Test Accounts (Hardhat):</p>
+            <div className="space-y-1 text-xs text-slate-500 font-mono">
+              <p>Owner: 0xf39F...2266</p>
+              <p>Donater 1: 0x7099...79C8</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Main Campaign Interface (after login)
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
       {/* Header */}
@@ -203,77 +336,23 @@ function App() {
           <div className="flex items-center gap-2">
             <Heart className="text-rose-500 w-8 h-8" />
             <h1 className="text-xl font-bold bg-gradient-to-r from-rose-500 to-purple-600 bg-clip-text text-transparent">
-              CharityChain (Local Dev)
+              CharityChain
             </h1>
           </div>
 
           <div className="flex items-center gap-4">
-            {/* Account Switcher */}
-            {accounts.length > 0 && (
-              <div className="flex bg-slate-100 rounded-lg p-1 gap-1">
-                {accounts.length === 1 ? (
-                  // If only 1 account, show Owner and Donor (both use same account)
-                  <>
-                    <button
-                      onClick={() => handleLogin(0)}
-                      className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${currentAccountIndex === 0
-                        ? 'bg-white text-slate-900 shadow-sm'
-                        : 'text-slate-500 hover:text-slate-700'
-                        }`}
-                    >
-                      Owner
-                    </button>
-                    <button
-                      onClick={() => handleLogin(0)}
-                      className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all text-slate-500 hover:text-slate-700`}
-                    >
-                      Donor
-                    </button>
-                  </>
-                ) : (
-                  // If multiple accounts, Owner = account 0, Donor = account 1, rest are User X
-                  <>
-                    <button
-                      onClick={() => handleLogin(0)}
-                      className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${currentAccountIndex === 0
-                        ? 'bg-white text-slate-900 shadow-sm'
-                        : 'text-slate-500 hover:text-slate-700'
-                        }`}
-                    >
-                      Owner
-                    </button>
-                    <button
-                      onClick={() => handleLogin(1)}
-                      className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${currentAccountIndex === 1
-                        ? 'bg-white text-slate-900 shadow-sm'
-                        : 'text-slate-500 hover:text-slate-700'
-                        }`}
-                    >
-                      Donor
-                    </button>
-                    {accounts.slice(2).map((acc, idx) => (
-                      <button
-                        key={typeof acc === 'string' ? acc : acc.address}
-                        onClick={() => handleLogin(idx + 2)}
-                        className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${currentAccountIndex === idx + 2
-                          ? 'bg-white text-slate-900 shadow-sm'
-                          : 'text-slate-500 hover:text-slate-700'
-                          }`}
-                      >
-                        User {idx + 2}
-                      </button>
-                    ))}
-                  </>
-                )}
-              </div>
-            )}
-
-            {activeAddress && (
-              <div className="flex items-center gap-2 bg-slate-100 px-4 py-2 rounded-lg text-sm font-medium">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                {activeAddress.slice(0, 6)}...{activeAddress.slice(-4)}
-              </div>
-            )}
+            <div className="flex items-center gap-2 bg-slate-100 px-4 py-2 rounded-lg text-sm font-medium">
+              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+              {authenticatedAccount.slice(0, 6)}...{authenticatedAccount.slice(-4)}
+              {isOwner && <span className="ml-2 text-xs bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full">Owner</span>}
+            </div>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-2 text-slate-600 hover:text-slate-900 transition-colors"
+            >
+              <LogOut className="w-4 h-4" />
+              Logout
+            </button>
           </div>
         </div>
       </header>
@@ -283,12 +362,16 @@ function App() {
         {/* Actions Bar */}
         <div className="flex justify-between items-center mb-8">
           <h2 className="text-2xl font-bold text-slate-800">Active Campaigns</h2>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-2 bg-rose-500 text-white px-4 py-2 rounded-lg hover:bg-rose-600 transition-colors"
-          >
-            <Plus className="w-4 h-4" /> Start Campaign
-          </button>
+
+          {/* Only Owner can create campaigns */}
+          {isOwner && (
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="flex items-center gap-2 bg-rose-500 text-white px-4 py-2 rounded-lg hover:bg-rose-600 transition-colors"
+            >
+              <Plus className="w-4 h-4" /> Start Campaign
+            </button>
+          )}
         </div>
 
         {/* Campaign Grid */}
@@ -348,6 +431,8 @@ function App() {
                         <input
                           type="number"
                           placeholder="Amount (ETH)"
+                          step="0.01"
+                          min="0.01"
                           className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-rose-500"
                           value={donationAmount[camp.id] || ''}
                           onChange={(e) => setDonationAmount({ ...donationAmount, [camp.id]: e.target.value })}
@@ -361,9 +446,9 @@ function App() {
                       </div>
                     )}
 
-                    {/* Owner/Admin Actions */}
+                    {/* Owner/Admin Actions - Only visible to Owner */}
                     <div className="pt-4 border-t border-slate-100 flex flex-wrap gap-2">
-                      {!camp.isClosed && (
+                      {isOwner && !camp.isClosed && (
                         <button
                           onClick={() => handleCheckGoal(camp.id)}
                           className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-md transition-colors"
@@ -372,7 +457,7 @@ function App() {
                         </button>
                       )}
 
-                      {camp.isClosed && camp.goalReached && camp.owner.toLowerCase() === activeAddress?.toLowerCase() && (
+                      {isOwner && camp.isClosed && camp.goalReached && camp.owner.toLowerCase() === authenticatedAccount?.toLowerCase() && (
                         <button
                           onClick={() => handleWithdraw(camp.id)}
                           className="text-xs bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 rounded-md transition-colors flex items-center gap-1"
@@ -381,12 +466,23 @@ function App() {
                         </button>
                       )}
 
+                      {/* Refund is available for everyone (Donors need it) */}
                       {camp.isClosed && !camp.goalReached && (
                         <button
                           onClick={() => handleRefund(camp.id)}
                           className="text-xs bg-orange-500 hover:bg-orange-600 text-white px-3 py-1.5 rounded-md transition-colors"
                         >
                           Refund
+                        </button>
+                      )}
+
+                      {/* Delete Button (Owner only, if no funds raised) */}
+                      {isOwner && Number(camp.amountRaised) === 0 && (
+                        <button
+                          onClick={() => handleDelete(camp.id)}
+                          className="text-xs bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-md transition-colors flex items-center gap-1"
+                        >
+                          <LogOut className="w-3 h-3" /> Delete
                         </button>
                       )}
                     </div>
@@ -437,6 +533,7 @@ function App() {
                   <input
                     type="number"
                     step="0.01"
+                    min="0.01"
                     required
                     className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500"
                     value={newCampaign.target}
@@ -447,6 +544,7 @@ function App() {
                   <label className="block text-sm font-medium text-slate-700 mb-1">Duration (Days)</label>
                   <input
                     type="number"
+                    min="1"
                     required
                     className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500"
                     value={newCampaign.duration}

@@ -1,19 +1,33 @@
 import json
 import os
-from ape import project
+import subprocess
 from web3 import Web3
 
 def main():
     # Connect to Anvil
     w3 = Web3(Web3.HTTPProvider("http://127.0.0.1:8545"))
     
-    # Get Contract Interface
-    contract_interface = project.CharityDonation.contract_type
+    print("Compiling CharityDonation.vy using vyper...")
+    # Compile using vyper CLI
+    # We need to use the full path to vyper if it's not in PATH, but let's assume it is or use the known path
+    vyper_path = r"C:\Users\krizb\ape310\Scripts\vyper.exe"
     
-    # Convert ABI to list of dicts for Web3.py
-    abi = [x.dict() for x in contract_interface.abi]
-    bytecode = contract_interface.deployment_bytecode.bytecode
+    # Get ABI
+    abi_process = subprocess.run([vyper_path, "-f", "abi", "contracts/CharityDonation.vy"], capture_output=True, text=True)
+    if abi_process.returncode != 0:
+        print(f"Error compiling ABI: {abi_process.stderr}")
+        return
+    abi = json.loads(abi_process.stdout)
+
+    # Get Bytecode
+    bytecode_process = subprocess.run([vyper_path, "-f", "bytecode", "contracts/CharityDonation.vy"], capture_output=True, text=True)
+    if bytecode_process.returncode != 0:
+        print(f"Error compiling Bytecode: {bytecode_process.stderr}")
+        return
+    bytecode = bytecode_process.stdout.strip()
     
+    print("Compilation successful.")
+
     # Create Contract Object
     CharityDonation = w3.eth.contract(abi=abi, bytecode=bytecode)
 
@@ -23,9 +37,6 @@ def main():
         print(f"Using unlocked account from node: {deployer_address}")
         
         # Build Transaction (for Geth we can just send it)
-        # Note: When using send_transaction with an unlocked account, we don't need to build/sign manually
-        # But we need the contract object to help us
-        
         tx_hash = CharityDonation.constructor().transact({
             'from': deployer_address,
             'gas': 3000000
@@ -64,8 +75,10 @@ def main():
         json.dump({"CharityDonation": contract_address}, f)
         
     with open(f"{frontend_path}/CharityDonation.json", "w") as f:
-        # Just save the ABI, not the full contract type which has non-serializable fields
-        # The frontend only needs the ABI
+        # Save ABI
         json.dump({"abi": abi}, f, indent=2)
         
     print("Artifacts saved to frontend/src/contracts")
+
+if __name__ == "__main__":
+    main()

@@ -227,5 +227,15 @@ Blockchain (Hardhat Node)
 
 ---
 
+## 11. Lưu Trữ Dữ Liệu (Quan Trọng)
+
+Các campaigns **KHÔNG được lưu trong project** (không có file database nào trong folder), mà được lưu **trực tiếp trên blockchain** (Hardhat Node đang chạy ở localhost).
+
+- **Cơ chế:** Dữ liệu được lưu trong **RAM** của Hardhat Node.
+- **Hệ quả:** Nếu bạn tắt Hardhat Node (đóng terminal), **tất cả campaigns sẽ bị mất**.
+- **Giải pháp:** Giữ terminal chạy Hardhat Node luôn mở trong quá trình development.
+
+---
+
 **Tác giả:** Khang  
 **Ngày tạo:** 29/11/2025

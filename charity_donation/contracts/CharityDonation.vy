@@ -10,6 +10,7 @@ struct Campaign:
     deadline: uint256
     isClosed: bool
     goalReached: bool
+    isDeleted: bool
 
 event CampaignCreated:
     id: uint256
@@ -36,6 +37,9 @@ event Refunded:
     donor: address
     amount: uint256
 
+event CampaignDeleted:
+    id: uint256
+
 campaigns: public(HashMap[uint256, Campaign])
 contributions: public(HashMap[uint256, HashMap[address, uint256]])
 campaignCount: public(uint256)
@@ -57,7 +61,8 @@ def createCampaign(_name: String[100], _description: String[200], _target: uint2
         amountRaised=0,
         deadline=deadline_timestamp,
         isClosed=False,
-        goalReached=False
+        goalReached=False,
+        isDeleted=False
     )
 
     self.campaignCount += 1
@@ -70,6 +75,7 @@ def createCampaign(_name: String[100], _description: String[200], _target: uint2
 @payable
 def donate(_id: uint256):
     assert _id < self.campaignCount, "Campaign does not exist"
+    assert not self.campaigns[_id].isDeleted, "Campaign is deleted"
     assert not self.campaigns[_id].isClosed, "Campaign is closed"
     assert block.timestamp < self.campaigns[_id].deadline, "Campaign deadline passed"
     assert msg.value > 0, "Donation amount must be greater than 0"
@@ -85,16 +91,8 @@ def donate(_id: uint256):
 @external
 def checkGoal(_id: uint256):
     assert _id < self.campaignCount, "Campaign does not exist"
+    assert not self.campaigns[_id].isDeleted, "Campaign is deleted"
     assert not self.campaigns[_id].isClosed, "Campaign is already closed"
-    # Allow checking goal if target reached OR deadline passed
-    # If target reached before deadline, we can close early? Or wait?
-    # Requirement: "Check goal + close campaign"
-    
-    # Logic: If deadline passed OR target reached, we can finalize.
-    # Let's stick to: Can finalize if deadline passed OR target met.
-    
-    # Actually, usually we check if deadline passed to decide success/fail.
-    # But if they hit target early, they might want to close early.
     
     is_target_reached: bool = self.campaigns[_id].amountRaised >= self.campaigns[_id].targetAmount
     is_deadline_passed: bool = block.timestamp >= self.campaigns[_id].deadline
@@ -112,25 +110,12 @@ def checkGoal(_id: uint256):
 @external
 def withdraw(_id: uint256):
     assert _id < self.campaignCount, "Campaign does not exist"
+    assert not self.campaigns[_id].isDeleted, "Campaign is deleted"
     assert self.campaigns[_id].isClosed, "Campaign is not closed"
     assert self.campaigns[_id].goalReached, "Goal was not reached"
     assert msg.sender == self.campaigns[_id].owner, "Only owner can withdraw"
 
     amount: uint256 = self.campaigns[_id].amountRaised
-    # Reset amountRaised to prevent re-entrancy/multiple withdrawals (though re-entrancy guard is better)
-    # But here we just set it to 0 or track withdrawn status. 
-    # Since we close the campaign, and check goalReached, we should ensure we don't withdraw twice.
-    # Simple way: check balance.
-    
-    # Better: transfer and let Vyper handle it. 
-    # But wait, if we set amountRaised to 0, it might affect history?
-    # Let's just transfer. The logic relies on `isClosed` and `goalReached`.
-    # To prevent double withdraw, we can check if balance > 0? 
-    # Or just rely on the fact that the contract holds the funds.
-    # Actually, if multiple campaigns exist, the contract holds ALL funds.
-    # So we MUST track if this specific campaign's funds were withdrawn.
-    # Let's set amountRaised to 0 after withdraw to prevent double withdraw.
-    
     assert amount > 0, "No funds to withdraw"
     self.campaigns[_id].amountRaised = 0 
     
@@ -143,6 +128,7 @@ def withdraw(_id: uint256):
 @external
 def refund(_id: uint256):
     assert _id < self.campaignCount, "Campaign does not exist"
+    assert not self.campaigns[_id].isDeleted, "Campaign is deleted"
     assert self.campaigns[_id].isClosed, "Campaign is not closed"
     assert not self.campaigns[_id].goalReached, "Goal was reached, cannot refund"
     
@@ -155,7 +141,20 @@ def refund(_id: uint256):
     log Refunded(_id, msg.sender, donated_amount)
 
 # ---------------------
-# Getters (Optional, for easy UI access if not using public vars directly)
+# Delete Campaign (Owner)
+# ---------------------
+@external
+def deleteCampaign(_id: uint256):
+    assert _id < self.campaignCount, "Campaign does not exist"
+    assert msg.sender == self.campaigns[_id].owner, "Only owner can delete"
+    assert self.campaigns[_id].amountRaised == 0, "Cannot delete campaign with funds"
+    assert not self.campaigns[_id].isDeleted, "Campaign already deleted"
+
+    self.campaigns[_id].isDeleted = True
+    log CampaignDeleted(_id)
+
+# ---------------------
+# Getters
 # ---------------------
 @external
 @view

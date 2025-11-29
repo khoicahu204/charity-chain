@@ -1,7 +1,6 @@
 {
   "abi": [
     {
-      "type": "event",
       "name": "CampaignCreated",
       "inputs": [
         {
@@ -25,10 +24,10 @@
           "indexed": false
         }
       ],
-      "anonymous": false
+      "anonymous": false,
+      "type": "event"
     },
     {
-      "type": "event",
       "name": "DonationReceived",
       "inputs": [
         {
@@ -47,10 +46,10 @@
           "indexed": false
         }
       ],
-      "anonymous": false
+      "anonymous": false,
+      "type": "event"
     },
     {
-      "type": "event",
       "name": "GoalChecked",
       "inputs": [
         {
@@ -64,10 +63,10 @@
           "indexed": false
         }
       ],
-      "anonymous": false
+      "anonymous": false,
+      "type": "event"
     },
     {
-      "type": "event",
       "name": "Withdrawn",
       "inputs": [
         {
@@ -86,10 +85,10 @@
           "indexed": false
         }
       ],
-      "anonymous": false
+      "anonymous": false,
+      "type": "event"
     },
     {
-      "type": "event",
       "name": "Refunded",
       "inputs": [
         {
@@ -108,12 +107,25 @@
           "indexed": false
         }
       ],
-      "anonymous": false
+      "anonymous": false,
+      "type": "event"
     },
     {
+      "name": "CampaignDeleted",
+      "inputs": [
+        {
+          "name": "id",
+          "type": "uint256",
+          "indexed": false
+        }
+      ],
+      "anonymous": false,
+      "type": "event"
+    },
+    {
+      "stateMutability": "nonpayable",
       "type": "function",
       "name": "createCampaign",
-      "stateMutability": "nonpayable",
       "inputs": [
         {
           "name": "_name",
@@ -135,9 +147,9 @@
       "outputs": []
     },
     {
+      "stateMutability": "payable",
       "type": "function",
       "name": "donate",
-      "stateMutability": "payable",
       "inputs": [
         {
           "name": "_id",
@@ -147,9 +159,9 @@
       "outputs": []
     },
     {
+      "stateMutability": "nonpayable",
       "type": "function",
       "name": "checkGoal",
-      "stateMutability": "nonpayable",
       "inputs": [
         {
           "name": "_id",
@@ -159,9 +171,9 @@
       "outputs": []
     },
     {
+      "stateMutability": "nonpayable",
       "type": "function",
       "name": "withdraw",
-      "stateMutability": "nonpayable",
       "inputs": [
         {
           "name": "_id",
@@ -171,9 +183,9 @@
       "outputs": []
     },
     {
+      "stateMutability": "nonpayable",
       "type": "function",
       "name": "refund",
-      "stateMutability": "nonpayable",
       "inputs": [
         {
           "name": "_id",
@@ -183,9 +195,21 @@
       "outputs": []
     },
     {
+      "stateMutability": "nonpayable",
+      "type": "function",
+      "name": "deleteCampaign",
+      "inputs": [
+        {
+          "name": "_id",
+          "type": "uint256"
+        }
+      ],
+      "outputs": []
+    },
+    {
+      "stateMutability": "view",
       "type": "function",
       "name": "getCampaign",
-      "stateMutability": "view",
       "inputs": [
         {
           "name": "_id",
@@ -232,15 +256,19 @@
             {
               "name": "goalReached",
               "type": "bool"
+            },
+            {
+              "name": "isDeleted",
+              "type": "bool"
             }
           ]
         }
       ]
     },
     {
+      "stateMutability": "view",
       "type": "function",
       "name": "campaigns",
-      "stateMutability": "view",
       "inputs": [
         {
           "name": "arg0",
@@ -287,15 +315,19 @@
             {
               "name": "goalReached",
               "type": "bool"
+            },
+            {
+              "name": "isDeleted",
+              "type": "bool"
             }
           ]
         }
       ]
     },
     {
+      "stateMutability": "view",
       "type": "function",
       "name": "contributions",
-      "stateMutability": "view",
       "inputs": [
         {
           "name": "arg0",
@@ -314,9 +346,9 @@
       ]
     },
     {
+      "stateMutability": "view",
       "type": "function",
       "name": "campaignCount",
-      "stateMutability": "view",
       "inputs": [],
       "outputs": [
         {

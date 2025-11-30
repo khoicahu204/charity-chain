@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
-import { Wallet, Plus, Heart, DollarSign, CheckCircle, XCircle, RefreshCw, User, LogOut, Lock } from 'lucide-react';
+import { Wallet, Plus, Heart, DollarSign, CheckCircle, XCircle, RefreshCw, User, LogOut, Lock, Upload, Image as ImageIcon, FileText } from 'lucide-react';
 import CharityDonationArtifact from './contracts/CharityDonation.json';
 import contractAddress from './contracts/contract-address.json';
+import { uploadImageToPinata, getIPFSUrl, validateImageFile, validateDocumentFile, getFileIcon } from './utils/ipfs';
 
 const CONTRACT_ADDRESS = contractAddress.CharityDonation;
 const RPC_URL = "http://127.0.0.1:8545";
@@ -29,11 +30,20 @@ function App() {
   const [newCampaign, setNewCampaign] = useState({
     name: '',
     description: '',
+    imageHash: '',
+    documentsHash: '',
     target: '0.01',
     duration: '1'
   });
 
   const [donationAmount, setDonationAmount] = useState({});
+  // Image Upload State
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  // Document Upload State
+  const [selectedDocument, setSelectedDocument] = useState(null);
+  const [uploadingDocument, setUploadingDocument] = useState(false);
 
   // Initial Load - Fetch campaigns if authenticated
   useEffect(() => {
@@ -90,6 +100,45 @@ function App() {
     setCampaigns([]);
     setDonationAmount({});
   };
+  // Handle Image Selection
+  const handleImageSelect = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const validation = validateImageFile(file);
+    if (!validation.valid) {
+      alert(validation.error);
+      return;
+    }
+    setSelectedImage(file);
+
+    // Create preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreview(reader.result);
+    };
+    reader.readAsDataURL(file);
+  };
+  // Remove selected image
+  const handleRemoveImage = () => {
+    setSelectedImage(null);
+    setImagePreview(null);
+  };
+
+  // Handle Document Selection
+  const handleDocumentSelect = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const validation = validateDocumentFile(file);
+    if (!validation.valid) {
+      alert(validation.error);
+      return;
+    }
+    setSelectedDocument(file);
+  };
+  // Remove selected document
+  const handleRemoveDocument = () => {
+    setSelectedDocument(null);
+  };
 
   // Helper to get Contract with Authenticated Signer
   const getContractWithSigner = async () => {
@@ -121,15 +170,17 @@ function App() {
       const loadedCampaigns = [];
       for (let i = 0; i < count; i++) {
         const camp = await contract.campaigns(i);
-        if (camp.isDeleted) continue; // Skip deleted campaigns
+        if (camp.isDeleted) continue;
         loadedCampaigns.push({
           id: i,
           owner: camp.owner,
           name: camp.name,
           description: camp.description,
+          imageHash: camp.imageHash, // NEW: IPFS hash
+          documentsHash: camp.documentsHash, // NEW: IPFS hash
           targetAmount: ethers.formatEther(camp.targetAmount),
           amountRaised: ethers.formatEther(camp.amountRaised),
-          deadline: Number(camp.deadline) * 1000, // Convert to ms
+          deadline: Number(camp.deadline) * 1000,
           isClosed: camp.isClosed,
           goalReached: camp.goalReached
         });
@@ -144,30 +195,62 @@ function App() {
   // Create Campaign
   const handleCreateCampaign = async (e) => {
     e.preventDefault();
-
     if (Number(newCampaign.target) <= 0 || Number(newCampaign.duration) <= 0) {
       alert("Target and Duration must be positive numbers!");
       return;
     }
-
     try {
+      // Get Pinata JWT token once
+      const pinataJWT = import.meta.env.VITE_PINATA_JWT;
+      if (!pinataJWT) {
+        alert("Pinata JWT not configured. Please check .env file.");
+        return;
+      }
+
+      setUploadingImage(true);
+
+      // Upload image to IPFS if selected
+      let imageHash = "";
+      if (selectedImage) {
+        imageHash = await uploadImageToPinata(selectedImage, pinataJWT);
+        console.log("Image uploaded to IPFS:", imageHash);
+      }
+
+      setUploadingImage(false);
+
+      // Upload document to IPFS if selected
+      let documentsHash = "";
+      if (selectedDocument) {
+        setUploadingDocument(true);
+        documentsHash = await uploadImageToPinata(selectedDocument, pinataJWT);
+        console.log("Document uploaded to IPFS:", documentsHash);
+        setUploadingDocument(false);
+      }
+
+      // Create campaign with image hash and documents hash
       const contract = await getContractWithSigner();
       const targetWei = ethers.parseEther(newCampaign.target);
-
       const tx = await contract.createCampaign(
         newCampaign.name,
         newCampaign.description,
+        imageHash,        // IPFS hash for image
+        documentsHash,    // IPFS hash for documents
         targetWei,
         newCampaign.duration
       );
       await tx.wait();
-
       alert("Campaign created successfully!");
       setShowCreateModal(false);
+      setNewCampaign({ name: '', description: '', target: '0.01', duration: '1' });
+      setSelectedImage(null);
+      setImagePreview(null);
+      setSelectedDocument(null);
       fetchCampaigns();
     } catch (error) {
       console.error("Error creating campaign:", error);
       alert("Failed to create campaign. Check console.");
+      setUploadingImage(false);
+      setUploadingDocument(false);
     }
   };
 
@@ -385,6 +468,17 @@ function App() {
             {campaigns.map((camp) => (
               <div key={camp.id} className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden hover:shadow-md transition-shadow">
                 <div className="p-6">
+                  {/* Campaign Image */}
+                  {camp.imageHash && (
+                    <img
+                      src={getIPFSUrl(camp.imageHash)}
+                      alt={camp.name}
+                      className="w-full h-48 object-cover rounded-lg mb-4"
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                      }}
+                    />
+                  )}
                   <div className="flex justify-between items-start mb-4">
                     <h3 className="text-lg font-bold text-slate-900 line-clamp-1">{camp.name}</h3>
                     {camp.isClosed ? (
@@ -405,6 +499,18 @@ function App() {
                   </div>
 
                   <p className="text-slate-600 text-sm mb-4 line-clamp-2 h-10">{camp.description}</p>
+                  {/* Campaign Documents */}
+                  {camp.documentsHash && (
+                    <a
+                      href={getIPFSUrl(camp.documentsHash)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 text-blue-500 hover:text-blue-700 text-sm mb-4 w-fit"
+                    >
+                      <FileText className="w-4 h-4" />
+                      <span>View Campaign Documents</span>
+                    </a>
+                  )}
 
                   {/* Progress Bar */}
                   <div className="mb-4">
@@ -526,7 +632,84 @@ function App() {
                   onChange={(e) => setNewCampaign({ ...newCampaign, description: e.target.value })}
                 />
               </div>
+              {/* Image Upload */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Campaign Image (Optional)
+                </label>
 
+                {!imagePreview ? (
+                  <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-rose-400 transition-colors cursor-pointer"
+                    onClick={() => document.getElementById('imageInput').click()}>
+                    <Upload className="w-8 h-8 mx-auto text-slate-400 mb-2" />
+                    <p className="text-sm text-slate-600">Click to upload image</p>
+                    <p className="text-xs text-slate-400 mt-1">PNG, JPG, GIF up to 5MB</p>
+                    <input
+                      id="imageInput"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageSelect}
+                      className="hidden"
+                    />
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <img
+                      src={imagePreview}
+                      alt="Preview"
+                      className="w-full h-48 object-cover rounded-lg"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleRemoveImage}
+                      className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full hover:bg-red-600"
+                    >
+                      <XCircle className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+              </div>
+              {/* Document Upload */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Campaign Documents (Optional)
+                </label>
+
+                {!selectedDocument ? (
+                  <div
+                    className="border-2 border-dashed border-slate-300 rounded-lg p-4 text-center hover:border-blue-400 transition-colors cursor-pointer"
+                    onClick={() => document.getElementById('documentInput').click()}
+                  >
+                    <FileText className="w-6 h-6 mx-auto text-slate-400 mb-2" />
+                    <p className="text-sm text-slate-600">Upload PDF or DOC</p>
+                    <p className="text-xs text-slate-400 mt-1">Up to 10MB</p>
+                    <input
+                      id="documentInput"
+                      type="file"
+                      accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                      onChange={handleDocumentSelect}
+                      className="hidden"
+                    />
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between bg-slate-50 p-3 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-5 h-5 text-blue-500" />
+                      <span className="text-sm text-slate-700">{selectedDocument.name}</span>
+                      <span className="text-xs text-slate-400">
+                        ({(selectedDocument.size / 1024 / 1024).toFixed(2)} MB)
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleRemoveDocument}
+                      className="text-red-500 hover:text-red-700"
+                    >
+                      <XCircle className="w-5 h-5" />
+                    </button>
+                  </div>
+                )}
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Target (ETH)</label>
@@ -555,9 +738,12 @@ function App() {
 
               <button
                 type="submit"
-                className="w-full bg-rose-500 text-white py-3 rounded-lg font-bold hover:bg-rose-600 transition-colors mt-2"
+                disabled={uploadingImage || uploadingDocument}
+                className="w-full bg-rose-500 text-white py-3 rounded-lg font-bold hover:bg-rose-600 transition-colors mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Create Campaign
+                {uploadingImage ? 'Uploading Image...' :
+                  uploadingDocument ? 'Uploading Document...' :
+                    'Create Campaign'}
               </button>
             </form>
           </div>

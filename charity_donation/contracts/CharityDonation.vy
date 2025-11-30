@@ -5,6 +5,8 @@ struct Campaign:
     owner: address
     name: String[100]
     description: String[200]
+    imageHash: String[100]      # IPFS CID for campaign image
+    documentsHash: String[100]  # IPFS CID for campaign documents
     targetAmount: uint256
     amountRaised: uint256
     deadline: uint256
@@ -48,7 +50,7 @@ campaignCount: public(uint256)
 # Create Campaign
 # ---------------------
 @external
-def createCampaign(_name: String[100], _description: String[200], _target: uint256, _duration: uint256):
+def createCampaign(_name: String[100], _description: String[200], _imageHash: String[100], _documentsHash: String[100], _target: uint256, _duration: uint256):
     newId: uint256 = self.campaignCount
     deadline_timestamp: uint256 = block.timestamp + (_duration * 86400) # _duration is in days
 
@@ -57,6 +59,8 @@ def createCampaign(_name: String[100], _description: String[200], _target: uint2
         owner=msg.sender,
         name=_name,
         description=_description,
+        imageHash=_imageHash,
+        documentsHash=_documentsHash,
         targetAmount=_target,
         amountRaised=0,
         deadline=deadline_timestamp,

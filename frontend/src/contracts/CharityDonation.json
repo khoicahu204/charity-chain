@@ -136,6 +136,14 @@
           "type": "string"
         },
         {
+          "name": "_imageHash",
+          "type": "string"
+        },
+        {
+          "name": "_documentsHash",
+          "type": "string"
+        },
+        {
           "name": "_target",
           "type": "uint256"
         },
@@ -238,6 +246,14 @@
               "type": "string"
             },
             {
+              "name": "imageHash",
+              "type": "string"
+            },
+            {
+              "name": "documentsHash",
+              "type": "string"
+            },
+            {
               "name": "targetAmount",
               "type": "uint256"
             },
@@ -294,6 +310,14 @@
             },
             {
               "name": "description",
+              "type": "string"
+            },
+            {
+              "name": "imageHash",
+              "type": "string"
+            },
+            {
+              "name": "documentsHash",
               "type": "string"
             },
             {

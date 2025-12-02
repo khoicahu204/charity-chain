@@ -239,7 +239,7 @@ function App() {
         newCampaign.duration
       );
       await tx.wait();
-      alert("Campaign created successfully!");
+      // alert("Campaign created successfully!");
       setShowCreateModal(false);
       setNewCampaign({ name: '', description: '', target: '0.01', duration: '1' });
       setSelectedImage(null);
@@ -329,7 +329,7 @@ function App() {
       const tx = await contract.deleteCampaign(id);
       await tx.wait();
 
-      alert("Campaign deleted successfully!");
+      // alert("Campaign deleted successfully!");
       fetchCampaigns();
     } catch (error) {
       console.error("Error deleting campaign:", error);

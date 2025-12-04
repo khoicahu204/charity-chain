@@ -15,22 +15,29 @@ const DonationHistoryModal = ({ isOpen, onClose, contract, userAccount, campaign
   const fetchDonations = async () => {
     setLoading(true);
     try {
+      // Check if user is owner
+      const isOwner = userAccount.toLowerCase() === '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'.toLowerCase();
+
       // Create filter for DonationReceived event
       // Event signature: DonationReceived(uint256 indexed id, address indexed donor, uint256 amount)
-      // We filter by donor = userAccount
-      const filter = contract.filters.DonationReceived(null, userAccount);
+      // If Owner: Fetch ALL events (null, null)
+      // If User: Filter by donor = userAccount (null, userAccount)
+      const filter = isOwner 
+        ? contract.filters.DonationReceived() 
+        : contract.filters.DonationReceived(null, userAccount);
+        
       const events = await contract.queryFilter(filter);
 
       const formattedDonations = await Promise.all(events.map(async (event) => {
         const block = await event.getBlock();
-        const campaignId = Number(event.args[0]); // Access by index for Vyper events sometimes, or name if ABI allows
-        // Note: ethers v6 event args can be accessed by name if ABI has it. 
-        // Vyper events usually have names. Let's try to map ID to campaign name.
+        const campaignId = Number(event.args[0]); 
+        const donorAddress = event.args[1];
         const campaign = campaigns.find(c => c.id === campaignId);
         
         return {
           hash: event.transactionHash,
           campaignName: campaign ? campaign.name : `Campaign #${campaignId}`,
+          donor: donorAddress, // Add donor address for Owner view
           amount: ethers.formatEther(event.args[2]),
           date: new Date(block.timestamp * 1000).toLocaleDateString(),
           timestamp: block.timestamp
@@ -70,12 +77,20 @@ const DonationHistoryModal = ({ isOpen, onClose, contract, userAccount, campaign
               <div key={donation.hash} className="bg-slate-50 dark:bg-slate-700/50 p-4 rounded-xl border border-slate-100 dark:border-slate-700 flex justify-between items-center">
                 <div>
                   <h4 className="font-bold text-slate-900 dark:text-white mb-1">{donation.campaignName}</h4>
+                  
+                  {/* Show Donor Address if it's not the current user (meaning we are Owner viewing others) */}
+                  {donation.donor && donation.donor.toLowerCase() !== userAccount.toLowerCase() && (
+                    <div className="text-xs text-rose-500 dark:text-rose-400 mb-1 font-mono">
+                      From: {donation.donor.slice(0, 6)}...{donation.donor.slice(-4)}
+                    </div>
+                  )}
+
                   <div className="flex items-center gap-4 text-sm text-slate-500 dark:text-slate-400">
                     <span className="flex items-center gap-1">
                       <Calendar className="w-3 h-3" /> {donation.date}
                     </span>
                     <a 
-                      href={`https://sepolia.etherscan.io/tx/${donation.hash}`} // Example link, though we are on local
+                      href={`https://sepolia.etherscan.io/tx/${donation.hash}`} 
                       target="_blank" 
                       rel="noopener noreferrer"
                       className="flex items-center gap-1 text-blue-500 hover:text-blue-600"

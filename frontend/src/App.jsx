@@ -66,54 +66,119 @@ function App() {
 
   const toggleDarkMode = () => setDarkMode(!darkMode);
 
-  // Login Handler
-  const handleLogin = async (account, privateKey) => {
+  // MetaMask Connection Handler
+  const connectWallet = async () => {
     setLoginError('');
 
+    if (!window.ethereum) {
+      setLoginError('MetaMask is not installed!');
+      return;
+    }
+
     try {
-      // Validate inputs
-      if (!account || !privateKey) {
-        setLoginError('Please enter both account address and private key');
-        return;
+      // Request account access
+      const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+      const account = accounts[0];
+
+      // Create provider
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      
+      // Check Network and Switch if needed
+      const network = await provider.getNetwork();
+      const targetChainId = 31337n; // Anvil Chain ID
+
+      if (network.chainId !== targetChainId) {
+        try {
+          await window.ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: '0x7A69' }], // 31337 in hex
+          });
+        } catch (switchError) {
+          // This error code indicates that the chain has not been added to MetaMask.
+          if (switchError.code === 4902) {
+            try {
+              await window.ethereum.request({
+                method: 'wallet_addEthereumChain',
+                params: [
+                  {
+                    chainId: '0x7A69',
+                    chainName: 'Localhost 8545',
+                    rpcUrls: ['http://127.0.0.1:8545'],
+                    nativeCurrency: {
+                      name: 'ETH',
+                      symbol: 'ETH',
+                      decimals: 18,
+                    },
+                  },
+                ],
+              });
+            } catch (addError) {
+              throw new Error('Failed to add Localhost network.');
+            }
+          } else {
+            throw new Error('Failed to switch network.');
+          }
+        }
+        // Refresh provider after switch
+        // Note: chainChanged event will reload page, which is handled in useEffect
       }
 
-      // Validate account address format
-      if (!ethers.isAddress(account)) {
-        setLoginError('Invalid account address format');
-        return;
-      }
-
-      // Create wallet from private key
-      const provider = new ethers.JsonRpcProvider(RPC_URL);
-      const wallet = new ethers.Wallet(privateKey, provider);
-
-      // Verify that the private key matches the account address
-      if (wallet.address.toLowerCase() !== account.toLowerCase()) {
-        setLoginError('Private key does not match the account address');
-        return;
-      }
-
-      // Authentication successful
-      setAuthenticatedAccount(wallet.address);
-      setAuthenticatedSigner(wallet);
+      const signer = await provider.getSigner();
+      setAuthenticatedAccount(account);
+      setAuthenticatedSigner(signer);
       setIsAuthenticated(true);
-      toast.success('Logged in successfully!');
+      toast.success('Wallet connected!');
 
     } catch (error) {
-      console.error('Login error:', error);
-      setLoginError('Invalid private key or account address');
-      toast.error('Login failed');
+      console.error("Connection error:", error);
+      setLoginError('Failed to connect wallet: ' + error.message);
+      toast.error(error.message);
     }
   };
 
+  // Listen for account changes
+  useEffect(() => {
+    if (window.ethereum) {
+      window.ethereum.on('accountsChanged', (accounts) => {
+        if (accounts.length > 0) {
+          setAuthenticatedAccount(accounts[0]);
+          // Re-create signer
+          const provider = new ethers.BrowserProvider(window.ethereum);
+          provider.getSigner().then(signer => {
+             setAuthenticatedSigner(signer);
+          });
+          toast.success('Account switched');
+        } else {
+          handleLogout();
+        }
+      });
+
+      window.ethereum.on('chainChanged', () => {
+        window.location.reload();
+      });
+    }
+  }, []);
+
   // Logout Handler
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      // Revoke permissions to force MetaMask to ask for connection again next time
+      if (window.ethereum) {
+        await window.ethereum.request({
+          method: "wallet_revokePermissions",
+          params: [{ eth_accounts: {} }]
+        });
+      }
+    } catch (error) {
+      console.error("Error revoking permissions:", error);
+    }
+
     setIsAuthenticated(false);
     setAuthenticatedAccount('');
     setAuthenticatedSigner(null);
     setCampaigns([]);
     setTokenBalance('0');
-    toast.success('Logged out');
+    toast.success('Disconnected');
   };
 
   // Helper to get Contract with Authenticated Signer
@@ -396,7 +461,7 @@ function App() {
       <Toaster position="top-right" />
       
       {!isAuthenticated ? (
-        <Login onLogin={handleLogin} loginError={loginError} />
+        <Login onConnect={connectWallet} loginError={loginError} />
       ) : (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white font-sans transition-colors duration-200">
           <Header 

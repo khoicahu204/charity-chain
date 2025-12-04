@@ -1,4 +1,6 @@
-# @version ^0.4.3
+# @version ^0.3.7
+
+from vyper.interfaces import ERC20
 
 struct Campaign:
     id: uint256
@@ -45,6 +47,11 @@ event CampaignDeleted:
 campaigns: public(HashMap[uint256, Campaign])
 contributions: public(HashMap[uint256, HashMap[address, uint256]])
 campaignCount: public(uint256)
+token: public(ERC20)
+
+@external
+def __init__(_token: address):
+    self.token = ERC20(_token)
 
 # ---------------------
 # Create Campaign
@@ -54,20 +61,20 @@ def createCampaign(_name: String[100], _description: String[200], _imageHash: St
     newId: uint256 = self.campaignCount
     deadline_timestamp: uint256 = block.timestamp + (_duration * 86400) # _duration is in days
 
-    self.campaigns[newId] = Campaign(
-        id=newId,
-        owner=msg.sender,
-        name=_name,
-        description=_description,
-        imageHash=_imageHash,
-        documentsHash=_documentsHash,
-        targetAmount=_target,
-        amountRaised=0,
-        deadline=deadline_timestamp,
-        isClosed=False,
-        goalReached=False,
-        isDeleted=False
-    )
+    self.campaigns[newId] = Campaign({
+        id: newId,
+        owner: msg.sender,
+        name: _name,
+        description: _description,
+        imageHash: _imageHash,
+        documentsHash: _documentsHash,
+        targetAmount: _target,
+        amountRaised: 0,
+        deadline: deadline_timestamp,
+        isClosed: False,
+        goalReached: False,
+        isDeleted: False
+    })
 
     self.campaignCount += 1
     log CampaignCreated(newId, msg.sender, _target, deadline_timestamp)
@@ -76,18 +83,21 @@ def createCampaign(_name: String[100], _description: String[200], _imageHash: St
 # Donate
 # ---------------------
 @external
-@payable
-def donate(_id: uint256):
+def donate(_id: uint256, _amount: uint256):
     assert _id < self.campaignCount, "Campaign does not exist"
     assert not self.campaigns[_id].isDeleted, "Campaign is deleted"
     assert not self.campaigns[_id].isClosed, "Campaign is closed"
     assert block.timestamp < self.campaigns[_id].deadline, "Campaign deadline passed"
-    assert msg.value > 0, "Donation amount must be greater than 0"
+    assert _amount > 0, "Donation amount must be greater than 0"
 
-    self.campaigns[_id].amountRaised += msg.value
-    self.contributions[_id][msg.sender] += msg.value
+    # Transfer tokens from donor to contract
+    success: bool = self.token.transferFrom(msg.sender, self, _amount)
+    assert success, "Token transfer failed"
 
-    log DonationReceived(_id, msg.sender, msg.value)
+    self.campaigns[_id].amountRaised += _amount
+    self.contributions[_id][msg.sender] += _amount
+
+    log DonationReceived(_id, msg.sender, _amount)
 
 # ---------------------
 # Check Goal
@@ -123,7 +133,10 @@ def withdraw(_id: uint256):
     assert amount > 0, "No funds to withdraw"
     self.campaigns[_id].amountRaised = 0 
     
-    send(msg.sender, amount)
+    # Transfer tokens to owner
+    success: bool = self.token.transfer(msg.sender, amount)
+    assert success, "Token transfer failed"
+
     log Withdrawn(_id, msg.sender, amount)
 
 # ---------------------
@@ -140,7 +153,10 @@ def refund(_id: uint256):
     assert donated_amount > 0, "No contribution to refund"
 
     self.contributions[_id][msg.sender] = 0
-    send(msg.sender, donated_amount)
+    
+    # Transfer tokens back to donor
+    success: bool = self.token.transfer(msg.sender, donated_amount)
+    assert success, "Token transfer failed"
     
     log Refunded(_id, msg.sender, donated_amount)
 

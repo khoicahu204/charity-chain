@@ -4,5 +4,8 @@
     "hardhat": "^3.0.16",
     "typescript": "~5.8.0"
   },
-  "type": "module"
+  "type": "module",
+  "dependencies": {
+    "node-fetch": "^3.3.2"
+  }
 }

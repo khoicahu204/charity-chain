@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  chain:
+    build: ./charity_donation
+    ports:
+      - "8545:8545"
+    volumes:
+      # Mount the contracts directory so the deploy script can write artifacts that persist/share
+      - ./frontend/src/contracts:/app/frontend/src/contracts
+    networks:
+      - charity-net
+
+  web:
+    build: ./frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      # Mount source code for hot reloading
+      - ./frontend:/app
+      # Avoid overwriting node_modules with host's
+      - /app/node_modules
+    depends_on:
+      - chain
+    environment:
+      - VITE_PINATA_JWT=${VITE_PINATA_JWT}
+    networks:
+      - charity-net
+
+networks:
+  charity-net:
+    driver: bridge

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
-import { Plus, RefreshCw } from 'lucide-react';
+import { Plus, RefreshCw, Search, Filter } from 'lucide-react';
 import { Toaster, toast } from 'react-hot-toast';
 import CharityDonationArtifact from './contracts/CharityDonation.json';
 import CharityTokenArtifact from './contracts/CharityToken.json';
@@ -12,6 +12,7 @@ import Login from './components/Login';
 import Header from './components/Header';
 import CampaignCard from './components/CampaignCard';
 import CreateCampaignModal from './components/CreateCampaignModal';
+import DonationHistoryModal from './components/DonationHistoryModal';
 
 const CONTRACT_ADDRESS = contractAddress.CharityDonation;
 const TOKEN_ADDRESS = contractAddress.CharityToken;
@@ -36,6 +37,14 @@ function App() {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadingDocument, setUploadingDocument] = useState(false);
 
+  // New Features State
+  const [darkMode, setDarkMode] = useState(() => {
+    return localStorage.getItem('theme') === 'dark';
+  });
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState('all'); // all, active, success, failed
+
   // Initial Load - Fetch campaigns if authenticated
   useEffect(() => {
     if (isAuthenticated) {
@@ -43,6 +52,19 @@ function App() {
       fetchTokenBalance();
     }
   }, [isAuthenticated]);
+
+  // Dark Mode Effect
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  }, [darkMode]);
+
+  const toggleDarkMode = () => setDarkMode(!darkMode);
 
   // Login Handler
   const handleLogin = async (account, privateKey) => {
@@ -354,47 +376,96 @@ function App() {
     }
   };
 
+  // Filter Logic
+  const filteredCampaigns = campaigns.filter(camp => {
+    const matchesSearch = camp.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = 
+      filterStatus === 'all' ? true :
+      filterStatus === 'active' ? !camp.isClosed :
+      filterStatus === 'success' ? camp.isClosed && camp.goalReached :
+      filterStatus === 'failed' ? camp.isClosed && !camp.goalReached : true;
+    
+    return matchesSearch && matchesStatus;
+  });
+
   // Check if current user is Owner (Account 0)
   const isOwner = authenticatedAccount.toLowerCase() === '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'.toLowerCase();
 
   return (
-    <>
+    <div className={darkMode ? 'dark' : ''}>
       <Toaster position="top-right" />
       
       {!isAuthenticated ? (
         <Login onLogin={handleLogin} loginError={loginError} />
       ) : (
-        <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white font-sans transition-colors duration-200">
           <Header 
             account={authenticatedAccount} 
             tokenBalance={tokenBalance} 
             isOwner={isOwner} 
             onLogout={handleLogout}
             onMint={handleMint}
+            onOpenHistory={() => setShowHistoryModal(true)}
+            toggleDarkMode={toggleDarkMode}
+            isDarkMode={darkMode}
           />
 
           <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div className="flex justify-between items-center mb-8">
-              <h2 className="text-2xl font-bold text-slate-800">Active Campaigns</h2>
+            {/* Actions Bar */}
+            <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+              <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Active Campaigns</h2>
 
-              {isOwner && (
-                <button
-                  onClick={() => setShowCreateModal(true)}
-                  className="flex items-center gap-2 bg-rose-500 text-white px-4 py-2 rounded-lg hover:bg-rose-600 transition-colors"
-                >
-                  <Plus className="w-4 h-4" /> Start Campaign
-                </button>
-              )}
+              <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
+                {/* Search */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input 
+                    type="text" 
+                    placeholder="Search campaigns..." 
+                    className="pl-9 pr-4 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-white w-full sm:w-64"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+
+                {/* Filter */}
+                <div className="relative">
+                  <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <select 
+                    className="pl-9 pr-8 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-white appearance-none cursor-pointer"
+                    value={filterStatus}
+                    onChange={(e) => setFilterStatus(e.target.value)}
+                  >
+                    <option value="all">All Status</option>
+                    <option value="active">Active</option>
+                    <option value="success">Success</option>
+                    <option value="failed">Failed</option>
+                  </select>
+                </div>
+
+                {isOwner && (
+                  <button
+                    onClick={() => setShowCreateModal(true)}
+                    className="flex items-center justify-center gap-2 bg-rose-500 text-white px-4 py-2 rounded-lg hover:bg-rose-600 transition-colors whitespace-nowrap"
+                  >
+                    <Plus className="w-4 h-4" /> Start Campaign
+                  </button>
+                )}
+              </div>
             </div>
 
             {loading && campaigns.length === 0 ? (
               <div className="text-center py-12">
                 <RefreshCw className="w-8 h-8 animate-spin mx-auto text-slate-400" />
-                <p className="mt-2 text-slate-500">Loading campaigns...</p>
+                <p className="mt-2 text-slate-500 dark:text-slate-400">Loading campaigns...</p>
+              </div>
+            ) : filteredCampaigns.length === 0 ? (
+              <div className="text-center py-12 bg-white dark:bg-slate-800 rounded-xl border border-dashed border-slate-300 dark:border-slate-700">
+                <p className="text-slate-500 dark:text-slate-400">No campaigns found matching your criteria.</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {campaigns.map((camp) => (
+                {filteredCampaigns.map((camp) => (
                   <CampaignCard
                     key={camp.id}
                     camp={camp}
@@ -419,9 +490,17 @@ function App() {
               uploadingDocument={uploadingDocument}
             />
           )}
+
+          <DonationHistoryModal 
+            isOpen={showHistoryModal}
+            onClose={() => setShowHistoryModal(false)}
+            contract={authenticatedSigner ? new ethers.Contract(CONTRACT_ADDRESS, CharityDonationArtifact.abi, authenticatedSigner) : null}
+            userAccount={authenticatedAccount}
+            campaigns={campaigns}
+          />
         </div>
       )}
-    </>
+    </div>
   );
 }
 

@@ -1,7 +1,7 @@
 import React from 'react';
-import { Heart, Coins, LogOut, Moon, Sun, History } from 'lucide-react';
+import { Heart, Coins, LogOut, Moon, Sun, History, RotateCcw, RefreshCw } from 'lucide-react';
 
-const Header = ({ account, tokenBalance, isOwner, onLogout, onMint, onOpenHistory, toggleDarkMode, isDarkMode }) => {
+const Header = ({ account, tokenBalance, isOwner, onLogout, onMint, onOpenHistory, onOpenSimulation, onResetTime, toggleDarkMode, isDarkMode }) => {
   return (
     <header className="bg-white dark:bg-slate-900 shadow-sm sticky top-0 z-10 transition-colors duration-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -29,6 +29,26 @@ const Header = ({ account, tokenBalance, isOwner, onLogout, onMint, onOpenHistor
           >
             <History className="w-4 h-4" />
             <span className="hidden sm:inline">History</span>
+          </button>
+
+          {/* Refund Simulation Button */}
+          <button
+            onClick={onOpenSimulation}
+            className="flex items-center gap-2 bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300 px-3 py-2 rounded-lg text-sm font-medium hover:bg-rose-200 dark:hover:bg-rose-900/50 transition-colors"
+            title="Simulate Refund Scenario"
+          >
+            <RotateCcw className="w-4 h-4" />
+            <span className="hidden sm:inline">Simulate Refund</span>
+          </button>
+
+          {/* Reset Time Button */}
+          <button
+            onClick={onResetTime}
+            className="flex items-center gap-2 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 px-3 py-2 rounded-lg text-sm font-medium hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors"
+            title="Reset Blockchain Time"
+          >
+            <RefreshCw className="w-4 h-4" />
+            <span className="hidden sm:inline">Reset Time</span>
           </button>
 
           {/* Token Balance Display */}

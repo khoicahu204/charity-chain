@@ -13,6 +13,7 @@ import Header from './components/Header';
 import CampaignCard from './components/CampaignCard';
 import CreateCampaignModal from './components/CreateCampaignModal';
 import DonationHistoryModal from './components/DonationHistoryModal';
+import RefundSimulation from './components/RefundSimulation';
 
 const CONTRACT_ADDRESS = contractAddress.CharityDonation;
 const TOKEN_ADDRESS = contractAddress.CharityToken;
@@ -42,8 +43,87 @@ function App() {
     return localStorage.getItem('theme') === 'dark';
   });
   const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [showSimulationModal, setShowSimulationModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all'); // all, active, success, failed
+
+  // Global Snapshot State
+  const [globalSnapshotId, setGlobalSnapshotId] = useState(null);
+
+  // Take initial snapshot for time reset
+  useEffect(() => {
+    const takeInitialSnapshot = async () => {
+      try {
+        const rpcUrl = "http://127.0.0.1:8545";
+        const response = await fetch(rpcUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            method: "evm_snapshot",
+            params: [],
+            id: new Date().getTime()
+          })
+        });
+        const data = await response.json();
+        setGlobalSnapshotId(data.result);
+        console.log("Global snapshot taken:", data.result);
+      } catch (e) {
+        console.error("Failed to take global snapshot", e);
+      }
+    };
+    takeInitialSnapshot();
+  }, []);
+
+  const handleResetTime = async () => {
+    if (!globalSnapshotId) {
+      toast.error("No snapshot found. Please restart Docker to reset time.");
+      return;
+    }
+    const toastId = toast.loading('Resetting blockchain time...');
+    try {
+      const rpcUrl = "http://127.0.0.1:8545";
+      await fetch(rpcUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          method: "evm_revert",
+          params: [globalSnapshotId],
+          id: new Date().getTime()
+        })
+      });
+      
+      // Take a new snapshot after revert
+      const response = await fetch(rpcUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          method: "evm_snapshot",
+          params: [],
+          id: new Date().getTime() + 1
+        })
+      });
+      const data = await response.json();
+      setGlobalSnapshotId(data.result);
+      
+      toast.success("Blockchain time reset!", { id: toastId });
+      fetchCampaigns();
+      fetchTokenBalance();
+    } catch (e) {
+      console.error("Failed to reset time", e);
+      toast.error("Failed to reset time.", { id: toastId });
+    }
+  };
+
+  // ... (useEffect for initial load) ...
+
+  // ... (handleConnect) ...
+
+  // ... (handleDisconnect) ...
+
+
 
   // Initial Load - Fetch campaigns if authenticated
   useEffect(() => {
@@ -329,7 +409,23 @@ function App() {
       fetchCampaigns();
     } catch (error) {
       console.error("Error creating campaign:", error);
-      toast.error("Failed to create campaign.", { id: toastId });
+      
+      // Check for MetaMask Nonce Mismatch / Internal JSON-RPC error
+      if (error.message?.includes("Internal JSON-RPC error") || error.code === -32603) {
+        toast.error(
+          <div>
+            Transaction failed due to chain reset.
+            <br />
+            <b>Please reset your MetaMask account:</b>
+            <br />
+            Settings &gt; Advanced &gt; Clear Activity Tab Data
+          </div>,
+          { id: toastId, duration: 8000 }
+        );
+      } else {
+        toast.error("Failed to create campaign.", { id: toastId });
+      }
+      
       setUploadingImage(false);
       setUploadingDocument(false);
     }
@@ -471,6 +567,8 @@ function App() {
             onLogout={handleLogout}
             onMint={handleMint}
             onOpenHistory={() => setShowHistoryModal(true)}
+            onOpenSimulation={() => setShowSimulationModal(true)}
+            onResetTime={handleResetTime}
             toggleDarkMode={toggleDarkMode}
             isDarkMode={darkMode}
           />
@@ -562,6 +660,14 @@ function App() {
             contract={authenticatedSigner ? new ethers.Contract(CONTRACT_ADDRESS, CharityDonationArtifact.abi, authenticatedSigner) : null}
             userAccount={authenticatedAccount}
             campaigns={campaigns}
+          />
+
+          <RefundSimulation
+            isOpen={showSimulationModal}
+            onClose={() => setShowSimulationModal(false)}
+            signer={authenticatedSigner}
+            userAccount={authenticatedAccount}
+            refreshAppBalance={fetchTokenBalance}
           />
         </div>
       )}

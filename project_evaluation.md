@@ -66,7 +66,7 @@ Hợp đồng `CharityDonation.vy` có **6 nghiệp vụ chính**:
 
 ---
 
-### ✅ Yêu cầu 3: Triển khai và kiểm thử thành công trên testnet
+### ✅ Yêu cầu 3: Triển khai và kiểm thử thành công trên testnet // phần này t với khánh chưa coi
 
 **Đạt yêu cầu: CÓ**
 
@@ -353,17 +353,16 @@ struct Campaign:
 ```json
 {
   "version": "1.0",
-  "name": "babaa",
-  "description": "baaa",
+  "name": "khang",
+  "description": "khang",
   "category": "Education",
-  "tags": [],
-  "createdAt": "2025-12-07T14:29:35.560Z",
+  "createdAt": "2025-12-07T14:33:14.097Z",
   "creator": {
     "address": "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
   },
   "media": {
-    "imageHash": "QmT3N1enURgAo6ssJkgkgdxXZbkkKxBfc8BczkmVyNhyx1",
-    "documentsHash": "QmTrCLHFXVB3Mnkc6Y8c45LtAsCxEh9m8EhzZBpCRZuDAW"
+    "imageHash": "",
+    "documentsHash": ""
   },
   "targetAmount": "100",
   "duration": "1"

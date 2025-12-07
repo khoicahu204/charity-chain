@@ -401,7 +401,6 @@ function App() {
         name: newCampaign.name,
         description: newCampaign.description,
         category: newCampaign.category || "General",
-        tags: newCampaign.tags || [],
         createdAt: new Date().toISOString(),
         creator: {
           address: authenticatedAccount

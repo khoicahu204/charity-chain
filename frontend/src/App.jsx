@@ -5,7 +5,7 @@ import { Toaster, toast } from 'react-hot-toast';
 import CharityDonationArtifact from './contracts/CharityDonation.json';
 import CharityTokenArtifact from './contracts/CharityToken.json';
 import contractAddress from './contracts/contract-address.json';
-import { uploadImageToPinata } from './utils/ipfs';
+import { uploadImageToPinata, uploadJSONToPinata } from './utils/ipfs';
 
 // Components
 import Login from './components/Login';
@@ -93,7 +93,7 @@ function App() {
           id: new Date().getTime()
         })
       });
-      
+
       // Take a new snapshot after revert
       const response = await fetch(rpcUrl, {
         method: "POST",
@@ -107,7 +107,7 @@ function App() {
       });
       const data = await response.json();
       setGlobalSnapshotId(data.result);
-      
+
       toast.success("Blockchain time reset!", { id: toastId });
       fetchCampaigns();
       fetchTokenBalance();
@@ -162,7 +162,7 @@ function App() {
 
       // Create provider
       const provider = new ethers.BrowserProvider(window.ethereum);
-      
+
       // Check Network and Switch if needed
       const network = await provider.getNetwork();
       const targetChainId = 31337n; // Anvil Chain ID
@@ -225,7 +225,7 @@ function App() {
           // Re-create signer
           const provider = new ethers.BrowserProvider(window.ethereum);
           provider.getSigner().then(signer => {
-             setAuthenticatedSigner(signer);
+            setAuthenticatedSigner(signer);
           });
           toast.success('Account switched');
         } else {
@@ -311,7 +311,7 @@ function App() {
     try {
       const tokenContract = await getTokenContractWithSigner();
       const minter = await tokenContract.minter();
-      
+
       if (authenticatedAccount.toLowerCase() !== minter.toLowerCase()) {
         toast.error("Only the token minter (deployer) can mint tokens.", { id: toastId });
         return;
@@ -344,6 +344,7 @@ function App() {
           description: camp.description,
           imageHash: camp.imageHash,
           documentsHash: camp.documentsHash,
+          metadataHash: camp.metadataHash,
           targetAmount: ethers.formatEther(camp.targetAmount),
           amountRaised: ethers.formatEther(camp.amountRaised),
           deadline: Number(camp.deadline) * 1000,
@@ -375,6 +376,7 @@ function App() {
         return;
       }
 
+      // Step 1: Upload image
       setUploadingImage(true);
       let imageHash = "";
       if (selectedImage) {
@@ -383,6 +385,7 @@ function App() {
       }
       setUploadingImage(false);
 
+      // Step 2: Upload document
       setUploadingDocument(true);
       let documentsHash = "";
       if (selectedDocument) {
@@ -391,6 +394,30 @@ function App() {
       }
       setUploadingDocument(false);
 
+      // Step 3: Create and upload metadata JSON
+      toast.loading('Creating metadata...', { id: toastId });
+      const metadata = {
+        version: "1.0",
+        name: newCampaign.name,
+        description: newCampaign.description,
+        category: newCampaign.category || "General",
+        tags: newCampaign.tags || [],
+        createdAt: new Date().toISOString(),
+        creator: {
+          address: authenticatedAccount
+        },
+        media: {
+          imageHash: imageHash,
+          documentsHash: documentsHash
+        },
+        targetAmount: newCampaign.target,
+        duration: newCampaign.duration
+      };
+
+      const metadataHash = await uploadJSONToPinata(metadata, pinataJWT);
+      console.log("Metadata uploaded to IPFS:", metadataHash);
+
+      // Step 4: Create campaign on blockchain
       toast.loading('Confirming transaction...', { id: toastId });
       const contract = await getContractWithSigner();
       const targetWei = ethers.parseEther(newCampaign.target);
@@ -399,17 +426,18 @@ function App() {
         newCampaign.description,
         imageHash,
         documentsHash,
+        metadataHash,
         targetWei,
         newCampaign.duration
       );
       await tx.wait();
-      
+
       toast.success("Campaign created successfully!", { id: toastId });
       setShowCreateModal(false);
       fetchCampaigns();
     } catch (error) {
       console.error("Error creating campaign:", error);
-      
+
       // Check for MetaMask Nonce Mismatch / Internal JSON-RPC error
       if (error.message?.includes("Internal JSON-RPC error") || error.code === -32603) {
         toast.error(
@@ -425,7 +453,7 @@ function App() {
       } else {
         toast.error("Failed to create campaign.", { id: toastId });
       }
-      
+
       setUploadingImage(false);
       setUploadingDocument(false);
     }
@@ -437,7 +465,7 @@ function App() {
       toast.error("Please enter a valid positive amount!");
       return;
     }
-    
+
     const toastId = toast.loading('Processing donation...');
 
     try {
@@ -447,7 +475,7 @@ function App() {
 
       // 1. Check Allowance
       const allowance = await tokenContract.allowance(authenticatedAccount, CONTRACT_ADDRESS);
-      
+
       if (allowance < amountWei) {
         toast.loading('Please approve token transfer...', { id: toastId });
         const approveTx = await tokenContract.approve(CONTRACT_ADDRESS, amountWei);
@@ -522,7 +550,7 @@ function App() {
   // Delete Campaign
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this campaign?")) return;
-    
+
     const toastId = toast.loading('Deleting campaign...');
     try {
       const contract = await getContractWithSigner();
@@ -540,12 +568,12 @@ function App() {
   // Filter Logic
   const filteredCampaigns = campaigns.filter(camp => {
     const matchesSearch = camp.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = 
+    const matchesStatus =
       filterStatus === 'all' ? true :
-      filterStatus === 'active' ? !camp.isClosed :
-      filterStatus === 'success' ? camp.isClosed && camp.goalReached :
-      filterStatus === 'failed' ? camp.isClosed && !camp.goalReached : true;
-    
+        filterStatus === 'active' ? !camp.isClosed :
+          filterStatus === 'success' ? camp.isClosed && camp.goalReached :
+            filterStatus === 'failed' ? camp.isClosed && !camp.goalReached : true;
+
     return matchesSearch && matchesStatus;
   });
 
@@ -555,15 +583,15 @@ function App() {
   return (
     <div className={darkMode ? 'dark' : ''}>
       <Toaster position="top-right" />
-      
+
       {!isAuthenticated ? (
         <Login onConnect={connectWallet} loginError={loginError} />
       ) : (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white font-sans transition-colors duration-200">
-          <Header 
-            account={authenticatedAccount} 
-            tokenBalance={tokenBalance} 
-            isOwner={isOwner} 
+          <Header
+            account={authenticatedAccount}
+            tokenBalance={tokenBalance}
+            isOwner={isOwner}
             onLogout={handleLogout}
             onMint={handleMint}
             onOpenHistory={() => setShowHistoryModal(true)}
@@ -582,9 +610,9 @@ function App() {
                 {/* Search */}
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                  <input 
-                    type="text" 
-                    placeholder="Search campaigns..." 
+                  <input
+                    type="text"
+                    placeholder="Search campaigns..."
                     className="pl-9 pr-4 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-white w-full sm:w-64"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -594,7 +622,7 @@ function App() {
                 {/* Filter */}
                 <div className="relative">
                   <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                  <select 
+                  <select
                     className="pl-9 pr-8 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-white appearance-none cursor-pointer"
                     value={filterStatus}
                     onChange={(e) => setFilterStatus(e.target.value)}
@@ -654,7 +682,7 @@ function App() {
             />
           )}
 
-          <DonationHistoryModal 
+          <DonationHistoryModal
             isOpen={showHistoryModal}
             onClose={() => setShowHistoryModal(false)}
             contract={authenticatedSigner ? new ethers.Contract(CONTRACT_ADDRESS, CharityDonationArtifact.abi, authenticatedSigner) : null}

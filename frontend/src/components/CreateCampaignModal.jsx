@@ -6,6 +6,7 @@ const CreateCampaignModal = ({ onClose, onCreate, uploadingImage, uploadingDocum
   const [newCampaign, setNewCampaign] = useState({
     name: '',
     description: '',
+    category: 'General',
     target: '100',
     duration: '1'
   });
@@ -85,6 +86,22 @@ const CreateCampaignModal = ({ onClose, onCreate, uploadingImage, uploadingDocum
               value={newCampaign.description}
               onChange={(e) => setNewCampaign({ ...newCampaign, description: e.target.value })}
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Category</label>
+            <select
+              className="w-full px-4 py-2 border border-slate-200 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500 bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
+              value={newCampaign.category}
+              onChange={(e) => setNewCampaign({ ...newCampaign, category: e.target.value })}
+            >
+              <option value="General">General</option>
+              <option value="Education">Education</option>
+              <option value="Health">Health</option>
+              <option value="Environment">Environment</option>
+              <option value="Disaster Relief">Disaster Relief</option>
+              <option value="Community">Community</option>
+            </select>
           </div>
           {/* Image Upload */}
           <div>

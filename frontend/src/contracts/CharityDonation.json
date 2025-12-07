@@ -22,6 +22,11 @@
           "name": "deadline",
           "type": "uint256",
           "indexed": false
+        },
+        {
+          "name": "metadataHash",
+          "type": "string",
+          "indexed": false
         }
       ],
       "anonymous": false,
@@ -144,6 +149,10 @@
           "type": "string"
         },
         {
+          "name": "_metadataHash",
+          "type": "string"
+        },
+        {
           "name": "_target",
           "type": "uint256"
         },
@@ -155,12 +164,16 @@
       "outputs": []
     },
     {
-      "stateMutability": "payable",
+      "stateMutability": "nonpayable",
       "type": "function",
       "name": "donate",
       "inputs": [
         {
           "name": "_id",
+          "type": "uint256"
+        },
+        {
+          "name": "_amount",
           "type": "uint256"
         }
       ],
@@ -254,6 +267,10 @@
               "type": "string"
             },
             {
+              "name": "metadataHash",
+              "type": "string"
+            },
+            {
               "name": "targetAmount",
               "type": "uint256"
             },
@@ -321,6 +338,10 @@
               "type": "string"
             },
             {
+              "name": "metadataHash",
+              "type": "string"
+            },
+            {
               "name": "targetAmount",
               "type": "uint256"
             },
@@ -380,6 +401,29 @@
           "type": "uint256"
         }
       ]
+    },
+    {
+      "stateMutability": "view",
+      "type": "function",
+      "name": "token",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "address"
+        }
+      ]
+    },
+    {
+      "stateMutability": "nonpayable",
+      "type": "constructor",
+      "inputs": [
+        {
+          "name": "_token",
+          "type": "address"
+        }
+      ],
+      "outputs": []
     }
   ]
 }

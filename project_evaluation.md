@@ -353,13 +353,20 @@ struct Campaign:
 ```json
 {
   "version": "1.0",
-  "name": "test",
-  "category": "Environment",
-  "creator": {"address": "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"},
+  "name": "babaa",
+  "description": "baaa",
+  "category": "Education",
+  "tags": [],
+  "createdAt": "2025-12-07T14:29:35.560Z",
+  "creator": {
+    "address": "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
+  },
   "media": {
-    "imageHash": "QmckaU5nfJXy9NwKGTPcRgoVyTNsFz57mCr1RXZeZhm6Qu",
-    "documentsHash": "QmcwtepyVMo1jfir9q4FJfyoohTreVJuWAsGMfDHfgmV7p"
-  }
+    "imageHash": "QmT3N1enURgAo6ssJkgkgdxXZbkkKxBfc8BczkmVyNhyx1",
+    "documentsHash": "QmTrCLHFXVB3Mnkc6Y8c45LtAsCxEh9m8EhzZBpCRZuDAW"
+  },
+  "targetAmount": "100",
+  "duration": "1"
 }
 ```
 

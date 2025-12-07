@@ -509,7 +509,7 @@ function App() {
       fetchCampaigns();
     } catch (error) {
       console.error("Error checking goal:", error);
-      toast.error("Failed to check goal.", { id: toastId });
+      toast.error("Not enough money in target to check goal.", { id: toastId });
     }
   };
 

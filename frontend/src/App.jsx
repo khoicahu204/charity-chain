@@ -292,8 +292,20 @@ function App() {
 
   // Create Campaign
   const handleCreateCampaign = async (newCampaign, selectedImage, selectedDocument) => {
-    if (Number(newCampaign.target) <= 0 || Number(newCampaign.duration) <= 0) {
+    // Validate inputs
+    const totalHours = Number(newCampaign.duration) * 24 + Number(newCampaign.durationHours || 0);
+    if (Number(newCampaign.target) <= 0 || totalHours <= 0) {
       toast.error("Target and Duration must be positive numbers!");
+      return;
+    }
+
+    // Check for duplicate campaign name
+    const isDuplicateName = campaigns.some(
+      camp => camp.name.toLowerCase() === newCampaign.name.trim().toLowerCase()
+    );
+
+    if (isDuplicateName) {
+      toast.error("A campaign with this name already exists. Please choose a different name.");
       return;
     }
 
@@ -329,6 +341,10 @@ function App() {
 
       // Step 3: Create and upload metadata JSON
       toast.loading('Creating metadata...', { id: toastId });
+
+      // Calculate total duration in hours
+      const totalHours = Number(newCampaign.duration) * 24 + Number(newCampaign.durationHours || 0);
+
       const metadata = {
         version: "1.0",
         name: newCampaign.name,
@@ -343,7 +359,11 @@ function App() {
           documentsHash: documentsHash
         },
         targetAmount: newCampaign.target,
-        duration: newCampaign.duration
+        duration: {
+          days: Number(newCampaign.duration),
+          hours: Number(newCampaign.durationHours || 0),
+          totalHours: totalHours
+        }
       };
 
       const metadataHash = await uploadJSONToPinata(metadata, pinataJWT, customName);
@@ -353,6 +373,7 @@ function App() {
       toast.loading('Confirming transaction...', { id: toastId });
       const contract = await getContractWithSigner();
       const targetWei = ethers.parseEther(newCampaign.target);
+
       const tx = await contract.createCampaign(
         newCampaign.name,
         newCampaign.description,
@@ -360,7 +381,7 @@ function App() {
         documentsHash,
         metadataHash,
         targetWei,
-        newCampaign.duration
+        totalHours  // Send hours directly to contract
       );
       await tx.wait();
 
@@ -517,9 +538,9 @@ function App() {
       <Toaster position="top-right" />
 
       {!isAuthenticated ? (
-        <Login 
-          onConnect={connectWallet} 
-          loginError={loginError} 
+        <Login
+          onConnect={connectWallet}
+          loginError={loginError}
           toggleDarkMode={toggleDarkMode}
           isDarkMode={darkMode}
         />
@@ -532,7 +553,7 @@ function App() {
             onLogout={handleLogout}
             onMint={handleMint}
             onOpenHistory={() => setShowHistoryModal(true)}
-            onOpenSimulation={() => setShowSimulationModal(true)}            
+            onOpenSimulation={() => setShowSimulationModal(true)}
             toggleDarkMode={toggleDarkMode}
             isDarkMode={darkMode}
           />

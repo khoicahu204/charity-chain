@@ -72,7 +72,14 @@ const CampaignCard = ({ camp, isOwner, userAccount, onDonate, onCheckGoal, onWit
         </div>
 
         <div className="text-xs text-slate-500 dark:text-slate-400 mb-6">
-          Deadline: {new Date(camp.deadline).toLocaleDateString()}
+          Deadline: {new Date(camp.deadline).toLocaleString('en-GB', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+          })}
         </div>
 
         {/* Actions */}

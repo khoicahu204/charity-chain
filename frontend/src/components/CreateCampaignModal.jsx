@@ -8,7 +8,8 @@ const CreateCampaignModal = ({ onClose, onCreate, uploadingImage, uploadingDocum
     description: '',
     category: 'General',
     target: '100',
-    duration: '1'
+    duration: '0',
+    durationHours: '1'
   });
   const [selectedImage, setSelectedImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
@@ -53,6 +54,14 @@ const CreateCampaignModal = ({ onClose, onCreate, uploadingImage, uploadingDocum
 
   const handleSubmit = (e) => {
     e.preventDefault();
+
+    // Validate total duration
+    const totalHours = Number(newCampaign.duration) * 24 + Number(newCampaign.durationHours);
+    if (totalHours <= 0) {
+      alert('Total duration must be at least 1 hour!');
+      return;
+    }
+
     onCreate(newCampaign, selectedImage, selectedDocument);
   };
 
@@ -198,12 +207,33 @@ const CreateCampaignModal = ({ onClose, onCreate, uploadingImage, uploadingDocum
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Duration (Days)</label>
               <input
                 type="number"
-                min="1"
+                step="1"
+                min="0"
                 required
                 className="w-full px-4 py-2 border border-slate-200 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500 bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
                 value={newCampaign.duration}
                 onChange={(e) => setNewCampaign({ ...newCampaign, duration: e.target.value })}
               />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Duration (Hours)</label>
+              <input
+                type="number"
+                step="1"
+                min="1"
+                max="23"
+                required
+                className="w-full px-4 py-2 border border-slate-200 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500 bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
+                value={newCampaign.durationHours}
+                onChange={(e) => setNewCampaign({ ...newCampaign, durationHours: e.target.value })}
+              />
+            </div>
+            <div className="flex items-end">
+              <div className="w-full px-4 py-2 bg-slate-100 dark:bg-slate-700 rounded-lg text-sm text-slate-600 dark:text-slate-400">
+                Total: {Number(newCampaign.duration) * 24 + Number(newCampaign.durationHours)} hours
+              </div>
             </div>
           </div>
 

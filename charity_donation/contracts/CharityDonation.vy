@@ -61,7 +61,7 @@ def __init__(_token: address):
 @external
 def createCampaign(_name: String[100], _description: String[200], _imageHash: String[100], _documentsHash: String[100], _metadataHash: String[100], _target: uint256, _duration: uint256):
     newId: uint256 = self.campaignCount
-    deadline_timestamp: uint256 = block.timestamp + (_duration * 86400) # _duration is in days
+    deadline_timestamp: uint256 = block.timestamp + (_duration * 3600) # _duration is in hours
 
     self.campaigns[newId] = Campaign(
         id=newId,

@@ -517,7 +517,12 @@ function App() {
       <Toaster position="top-right" />
 
       {!isAuthenticated ? (
-        <Login onConnect={connectWallet} loginError={loginError} />
+        <Login 
+          onConnect={connectWallet} 
+          loginError={loginError} 
+          toggleDarkMode={toggleDarkMode}
+          isDarkMode={darkMode}
+        />
       ) : (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white font-sans transition-colors duration-200">
           <Header

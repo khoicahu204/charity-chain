@@ -1,9 +1,17 @@
 import React from 'react';
-import { Heart, Wallet } from 'lucide-react';
+import { Heart, Wallet, Sun, Moon } from 'lucide-react';
 
-const Login = ({ onConnect, loginError }) => {
+const Login = ({ onConnect, loginError, toggleDarkMode, isDarkMode }) => {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-rose-50 via-purple-50 to-slate-50 dark:from-slate-900 dark:via-slate-800 dark:to-black flex items-center justify-center p-4 transition-colors duration-200">
+    <div className="min-h-screen bg-gradient-to-br from-rose-50 via-purple-50 to-slate-50 dark:from-slate-900 dark:via-slate-800 dark:to-black flex items-center justify-center p-4 transition-colors duration-200 relative">
+      <button
+        onClick={toggleDarkMode}
+        className="absolute top-4 right-4 p-2 rounded-lg bg-white/50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800 transition-colors backdrop-blur-sm shadow-sm"
+        title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+      >
+        {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+      </button>
+
       <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md p-8 transition-colors duration-200 text-center">
         <div className="mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-rose-100 dark:bg-rose-900/30 rounded-full mb-4">

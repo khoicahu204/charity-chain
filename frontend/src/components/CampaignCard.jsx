@@ -108,7 +108,7 @@ const CampaignCard = ({ camp, isOwner, userAccount, onDonate, onCheckGoal, onWit
               </button>
             )}
 
-            {isOwner && camp.isClosed && camp.goalReached && camp.owner.toLowerCase() === userAccount?.toLowerCase() && (
+            {isOwner && camp.isClosed && camp.goalReached && Number(camp.amountRaised) > 0 && camp.owner.toLowerCase() === userAccount?.toLowerCase() && (
               <button
                 onClick={() => onWithdraw(camp.id)}
                 className="text-xs bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 rounded-md transition-colors flex items-center gap-1"

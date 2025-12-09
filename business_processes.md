@@ -121,29 +121,31 @@ graph TB
         end
         
         subgraph Contract["Lane: Smart Contract"]
-            F1 --> C1{Campaign<br/>closed?}
+            F1 --> C1{Campaign<br/>exists?}
             C1 -->|No| C2[Revert]
-            C1 -->|Yes| C3{Goal<br/>reached?}
+            C1 -->|Yes| C3{Campaign<br/>closed?}
             C3 -->|No| C2
-            C3 -->|Yes| C4{Caller =<br/>owner?}
+            C3 -->|Yes| C4{Goal<br/>reached?}
             C4 -->|No| C2
-            C4 -->|Yes| C5{Has<br/>funds?}
+            C4 -->|Yes| C5{Caller =<br/>owner?}
             C5 -->|No| C2
-            C5 -->|Yes| C6[amount =<br/>amountRaised]
-            C6 --> C7[Set amountRaised<br/>= 0]
-            C7 --> C8[Transfer to<br/>Token Contract]
+            C5 -->|Yes| C6{amountRaised<br/>> 0?}
+            C6 -->|No| C2
+            C6 -->|Yes| C7[amount =<br/>amountRaised]
+            C7 --> C8[Set amountRaised<br/>= 0]
+            C8 --> C9[Transfer to<br/>Token Contract]
         end
         
         subgraph Token["Lane: Token Contract"]
-            C8 --> T1[Transfer tokens<br/>to owner]
+            C9 --> T1[Transfer tokens<br/>to owner]
         end
         
         subgraph Contract2["Lane: Smart Contract"]
-            T1 --> C9[Emit Event]
+            T1 --> C10[Emit Event]
         end
         
         C2 --> E1((End))
-        C9 --> E2((End))
+        C10 --> E2((End))
     end
 ```
 

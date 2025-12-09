@@ -9,7 +9,7 @@ const IPFS_GATEWAY = "https://gateway.pinata.cloud/ipfs/";
  * @param {string} pinataJWT - Pinata JWT token
  * @returns {Promise<string>} - IPFS CID (hash)
  */
-export async function uploadImageToPinata(file, pinataJWT) {
+export async function uploadImageToPinata(file, pinataJWT, customName) {
     if (!pinataJWT) {
         throw new Error("Pinata JWT token is required");
     }
@@ -18,7 +18,7 @@ export async function uploadImageToPinata(file, pinataJWT) {
     formData.append('file', file);
 
     const metadata = JSON.stringify({
-        name: file.name,
+        name: customName || file.name,
     });
     formData.append('pinataMetadata', metadata);
 
@@ -128,9 +128,10 @@ export function getFileIcon(filename) {
  * Upload JSON metadata to IPFS via Pinata
  * @param {Object} jsonData - JSON object to upload
  * @param {string} pinataJWT - Pinata JWT token
+ * @param {string} customName - Custom name for Pinata metadata
  * @returns {Promise<string>} - IPFS CID (hash)
  */
-export async function uploadJSONToPinata(jsonData, pinataJWT) {
+export async function uploadJSONToPinata(jsonData, pinataJWT, customName) {
     if (!pinataJWT) {
         throw new Error("Pinata JWT token is required");
     }
@@ -149,7 +150,7 @@ export async function uploadJSONToPinata(jsonData, pinataJWT) {
         formData.append('file', jsonBlob, 'metadata.json');
 
         const metadata = JSON.stringify({
-            name: 'campaign-metadata.json',
+            name: customName || 'campaign-metadata.json',
         });
         formData.append('pinataMetadata', metadata);
 

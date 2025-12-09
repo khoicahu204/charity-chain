@@ -47,76 +47,6 @@ function App() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all'); // all, active, success, failed
 
-  // Global Snapshot State
-  const [globalSnapshotId, setGlobalSnapshotId] = useState(null);
-
-  // Take initial snapshot for time reset
-  useEffect(() => {
-    const takeInitialSnapshot = async () => {
-      try {
-        const rpcUrl = "http://127.0.0.1:8545";
-        const response = await fetch(rpcUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            jsonrpc: "2.0",
-            method: "evm_snapshot",
-            params: [],
-            id: new Date().getTime()
-          })
-        });
-        const data = await response.json();
-        setGlobalSnapshotId(data.result);
-        console.log("Global snapshot taken:", data.result);
-      } catch (e) {
-        console.error("Failed to take global snapshot", e);
-      }
-    };
-    takeInitialSnapshot();
-  }, []);
-
-  const handleResetTime = async () => {
-    if (!globalSnapshotId) {
-      toast.error("No snapshot found. Please restart Docker to reset time.");
-      return;
-    }
-    const toastId = toast.loading('Resetting blockchain time...');
-    try {
-      const rpcUrl = "http://127.0.0.1:8545";
-      await fetch(rpcUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          jsonrpc: "2.0",
-          method: "evm_revert",
-          params: [globalSnapshotId],
-          id: new Date().getTime()
-        })
-      });
-
-      // Take a new snapshot after revert
-      const response = await fetch(rpcUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          jsonrpc: "2.0",
-          method: "evm_snapshot",
-          params: [],
-          id: new Date().getTime() + 1
-        })
-      });
-      const data = await response.json();
-      setGlobalSnapshotId(data.result);
-
-      toast.success("Blockchain time reset!", { id: toastId });
-      fetchCampaigns();
-      fetchTokenBalance();
-    } catch (e) {
-      console.error("Failed to reset time", e);
-      toast.error("Failed to reset time.", { id: toastId });
-    }
-  };
-
   // ... (useEffect for initial load) ...
 
   // ... (handleConnect) ...
@@ -376,12 +306,15 @@ function App() {
         return;
       }
 
+      const timestamp = new Date().getTime();
+      const customName = `${timestamp}_${newCampaign.name.replace(/\s+/g, '_')}`;
+
       // Step 1: Upload image
       setUploadingImage(true);
       let imageHash = "";
       if (selectedImage) {
         toast.loading('Uploading image...', { id: toastId });
-        imageHash = await uploadImageToPinata(selectedImage, pinataJWT);
+        imageHash = await uploadImageToPinata(selectedImage, pinataJWT, customName);
       }
       setUploadingImage(false);
 
@@ -390,7 +323,7 @@ function App() {
       let documentsHash = "";
       if (selectedDocument) {
         toast.loading('Uploading document...', { id: toastId });
-        documentsHash = await uploadImageToPinata(selectedDocument, pinataJWT);
+        documentsHash = await uploadImageToPinata(selectedDocument, pinataJWT, customName);
       }
       setUploadingDocument(false);
 
@@ -413,7 +346,7 @@ function App() {
         duration: newCampaign.duration
       };
 
-      const metadataHash = await uploadJSONToPinata(metadata, pinataJWT);
+      const metadataHash = await uploadJSONToPinata(metadata, pinataJWT, customName);
       console.log("Metadata uploaded to IPFS:", metadataHash);
 
       // Step 4: Create campaign on blockchain
@@ -594,8 +527,7 @@ function App() {
             onLogout={handleLogout}
             onMint={handleMint}
             onOpenHistory={() => setShowHistoryModal(true)}
-            onOpenSimulation={() => setShowSimulationModal(true)}
-            onResetTime={handleResetTime}
+            onOpenSimulation={() => setShowSimulationModal(true)}            
             toggleDarkMode={toggleDarkMode}
             isDarkMode={darkMode}
           />

@@ -488,6 +488,23 @@ function App() {
     const toastId = toast.loading('Processing refund...');
     try {
       const contract = await getContractWithSigner();
+
+      // Check contribution amount first
+      const contribution = await contract.contributions(id, authenticatedAccount);
+      if (contribution === 0n) {
+        toast.error("You have not donated to this campaign or already refunded.", { id: toastId });
+        return;
+      }
+
+      // Check if campaign needs to be closed first
+      const camp = campaigns.find(c => c.id === id);
+      if (camp && !camp.isClosed) {
+        toast.loading('Finalizing campaign first...', { id: toastId });
+        const closeTx = await contract.checkGoal(id);
+        await closeTx.wait();
+        toast.loading('Campaign finalized. Processing refund...', { id: toastId });
+      }
+
       const tx = await contract.refund(id);
       await tx.wait();
 
@@ -496,7 +513,14 @@ function App() {
       fetchTokenBalance();
     } catch (error) {
       console.error("Error refunding:", error);
-      toast.error("Failed to refund.", { id: toastId });
+      // Improved error parsing
+      if (error.message.includes("No contribution")) {
+        toast.error("You have no funds to refund.", { id: toastId });
+      } else if (error.message.includes("Campaign is not closed")) {
+        toast.error("Campaign is not closed yet.", { id: toastId });
+      } else {
+        toast.error("Failed to refund. check console for details", { id: toastId });
+      }
     }
   };
 

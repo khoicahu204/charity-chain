@@ -72,14 +72,22 @@ const CampaignCard = ({ camp, isOwner, userAccount, onDonate, onCheckGoal, onWit
         </div>
 
         <div className="text-xs text-slate-500 dark:text-slate-400 mb-6">
-          Deadline: {new Date(camp.deadline).toLocaleString('en-GB', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: false
-          })}
+          Deadline: {(() => {
+            try {
+              const date = new Date(camp.deadline);
+              if (isNaN(date.getTime())) return "Invalid Date";
+              return date.toLocaleString('en-GB', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false
+              });
+            } catch (e) {
+              return "Invalid Date";
+            }
+          })()}
         </div>
 
         {/* Actions */}
@@ -110,8 +118,9 @@ const CampaignCard = ({ camp, isOwner, userAccount, onDonate, onCheckGoal, onWit
               <button
                 onClick={() => onCheckGoal(camp.id)}
                 className="text-xs bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 px-3 py-1.5 rounded-md transition-colors"
+                title={new Date() > new Date(camp.deadline) ? "Click to refund for donors" : "Check if goal reached"}
               >
-                Check Goal
+                {new Date() > new Date(camp.deadline) ? 'Refund' : 'Check Goal'}
               </button>
             )}
 
@@ -124,7 +133,7 @@ const CampaignCard = ({ camp, isOwner, userAccount, onDonate, onCheckGoal, onWit
               </button>
             )}
 
-            {/* Refund is available for everyone (Donors need it) */}
+            {/* Refund is only available AFTER campaign is closed and failed */}
             {camp.isClosed && !camp.goalReached && (
               <button
                 onClick={() => onRefund(camp.id)}

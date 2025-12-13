@@ -446,7 +446,7 @@ function App() {
       fetchTokenBalance();
     } catch (error) {
       console.error("Error donating:", error);
-      toast.error("Failed to donate.", { id: toastId });
+      toast.error("Not enough money in wallet to donate.", { id: toastId });
     }
   };
 

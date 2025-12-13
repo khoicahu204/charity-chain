@@ -161,31 +161,41 @@ graph TB
         end
         
         subgraph Frontend["Lane: Frontend"]
-            U2 --> F1[Call refund]
+            U2 --> F1{Check Contribution<br/>> 0 ?}
+            F1 -->|No| F2[Show Error:<br/>No contribution]
+            F1 -->|Yes| F3{Is Campaign<br/>Closed?}
+            F3 -->|No| F4[Call checkGoal<br/>to finalize]
+            F3 -->|Yes| F5[Call refund]
+            F4 -.->|Wait for tx| F5
         end
         
         subgraph Contract["Lane: Smart Contract"]
-            F1 --> C1{Campaign<br/>closed?}
-            C1 -->|No| C2[Revert]
-            C1 -->|Yes| C3{Goal NOT<br/>reached?}
-            C3 -->|Reached| C2
-            C3 -->|Not reached| C4{Has<br/>contribution?}
-            C4 -->|No| C2
-            C4 -->|Yes| C5[amount =<br/>contribution]
-            C5 --> C6[Set contribution<br/>= 0]
-            C6 --> C7[Transfer to<br/>Token Contract]
+            F4 --> C1{Validate<br/>checkGoal}
+            C1 -->|Deadline passed<br/>or Reached| C2[Set isClosed = true<br/>Set goalReached]
+            C2 --> F5
+
+            F5 --> C3{Campaign<br/>closed?}
+            C3 -->|No| C4[Revert]
+            C3 -->|Yes| C5{Goal NOT<br/>reached?}
+            C5 -->|Reached| C4
+            C5 -->|Not reached| C6{Has<br/>contribution?}
+            C6 -->|No| C4
+            C6 -->|Yes| C7[amount =<br/>contribution]
+            C7 --> C8[Set contribution<br/>= 0]
+            C8 --> C9[Transfer to<br/>Token Contract]
         end
         
         subgraph Token["Lane: Token Contract"]
-            C7 --> T1[Transfer tokens<br/>to donor]
+            C9 --> T1[Transfer tokens<br/>to donor]
         end
         
         subgraph Contract2["Lane: Smart Contract"]
-            T1 --> C8[Emit Event]
+            T1 --> C10[Emit Event]
         end
         
-        C2 --> E1((End))
-        C8 --> E2((End))
+        F2 --> E1((End))
+        C4 --> E1
+        C10 --> E2((End))
     end
 ```
 

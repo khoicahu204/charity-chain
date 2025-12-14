@@ -92,7 +92,7 @@ const CampaignCard = ({ camp, isOwner, userAccount, onDonate, onCheckGoal, onWit
 
         {/* Actions */}
         <div className="space-y-3">
-          {!camp.isClosed && (
+          {!camp.isClosed && camp.owner.toLowerCase() !== userAccount?.toLowerCase() && (
             <div className="flex gap-2">
               <input
                 type="number"
